@@ -27,6 +27,7 @@ COUT            := $FDED
 SETINV          := $FE80
 SETNORM         := $FE84
 
+
         .org    $2000
 
 L2000:  jmp     install_and_quit
@@ -34,6 +35,12 @@ L2000:  jmp     install_and_quit
 
         .org    $1000
 .proc bbb
+
+        prefix := $280          ; length-prefixed
+        ;; filenames at $1400 - each is length byte + 15 byte buffer
+
+        read_buffer := $2000    ; Also, start location for launched SYS files
+
         cld
         lda     ROMINNW
         stz     $03F2
@@ -67,26 +74,28 @@ L1042:  sta     on_line_params_unit
         MLI_CALL ON_LINE, on_line_params
         bcs     L1032
         stz     $6B
-        lda     $0281
+        lda     prefix+1
         and     #$0F
         beq     L1032
         adc     #$02
         tax
-L1059:  stx     $0280
-        lda     #$2F
-        sta     $0281
-        sta     $0280,x
-        stz     $0281,x
+
+L1059:  stx     prefix          ; truncate prefix to length x
+        lda     #'/'
+        sta     prefix+1
+        sta     prefix,x
+        stz     prefix+1,x
+
         MLI_CALL OPEN, open_params
         bcc     L107F
         lda     $6B
         beq     L1032
         jsr     BELL1
         jsr     L11DA
-        stx     $0280
+        stx     prefix
         jmp     keyboard_loop
 
-L107F:  inc     $6B
+L107F:  inc     $6B             ; ???
         stz     $68
         lda     open_params_ref_num
         sta     read_params_ref_num
@@ -94,7 +103,7 @@ L107F:  inc     $6B
         lda     #$2B
         sta     read_params_request
         stz     read_params_request+1
-        jsr     L12B4
+        jsr     do_read
         bcs     L10B3
         ldx     #$03
 L109A:  lda     $2023,x
@@ -133,10 +142,10 @@ L10D8:  adc     #$04
         sta     $62
         MLI_CALL SET_MARK, L0060
         bcs     L10B3
-        jsr     L12B4
+        jsr     do_read
         bcs     L10B3
         inc     $72
-        lda     L2000
+        lda     read_buffer
         and     #$F0
         beq     L10B9
         dec     $70
@@ -155,7 +164,7 @@ L1108:  ldx     $68
         sta     $74,x
         jsr     L1258
         ldy     #$0F
-L1115:  lda     L2000,y
+L1115:  lda     read_buffer,y
         sta     ($6C),y
         dey
         bpl     L1115
@@ -177,7 +186,7 @@ L1129:  MLI_CALL CLOSE, close_params
         jsr     L124A
         jsr     L12AD
         ldx     #$00
-L1148:  lda     $0281,x
+L1148:  lda     prefix+1,x
         beq     L1153
         jsr     L12AF
         inx
@@ -239,7 +248,7 @@ keyboard_loop:
         ldx     $68
         beq     L11CB
         cmp     #$8D            ; Return
-        beq     L11F4
+        beq     on_return
         cmp     #$8A            ; Down Arrow
         beq     on_down
         cmp     #$8B            ; Up Arrow
@@ -252,14 +261,14 @@ L11CB:  cmp     #$89            ; Tab
         jsr     L11DA
         dec     $6B
         bra     L11F1
-L11DA:  ldx     $0280
+L11DA:  ldx     prefix
 L11DD:  dex
-        lda     $0280,x
-        cmp     #$2F
+        lda     prefix,x
+        cmp     #'/'
         bne     L11DD
         cpx     #$01
         bne     L11EC
-        ldx     $0280
+        ldx     prefix
 L11EC:  rts
 
 next_drive:
@@ -268,45 +277,54 @@ next_drive:
 L11F0:  inx
 L11F1:  jmp     L1059
 
-L11F4:  MLI_CALL SET_PREFIX, set_prefix_params
+on_return:
+        MLI_CALL SET_PREFIX, set_prefix_params
         bcs     next_drive
         ldx     $67
         jsr     L1258
-        ldx     $0280
-L1204:  iny
+
+        ldx     prefix
+:       iny
         lda     ($6C),y
         inx
-        sta     $0280,x
+        sta     prefix,x
         cpy     $69
-        bcc     L1204
-        stx     $0280
+        bcc     :-
+        stx     prefix
+
         ldy     $67
         lda     $74,y
-        bpl     L11F0
+        bpl     L11F0           ; is directory???
+
+.proc launch_sys_file
         jsr     MON_SETTXT
         jsr     MON_HOME
-        lda     #$95
+        lda     #$95            ; Right arrow
         jsr     COUT
+
         MLI_CALL OPEN, open_params
         bcs     next_drive
         lda     open_params_ref_num
         sta     read_params_ref_num
-        lda     #$FF
+        lda     #$FF            ; Load up to $FFFF bytes
         sta     read_params_request
         sta     read_params_request+1
-        jsr     L12B4
+        jsr     do_read
         php
         MLI_CALL CLOSE, close_params
         plp
         bcs     next_drive
-        jmp     L2000
+        jmp     read_buffer     ; Invoke the loaded code
+.endproc
 
 L124A:  sta     $24
-L124C:  lda     help_string,y
+
+cout_string:
+        lda     help_string,y
         beq     L1257
         jsr     COUT
         iny
-        bne     L124C
+        bne     cout_string
 L1257:  rts
 
 L1258:  stz     $6D
@@ -343,8 +361,8 @@ L1277:  lda     #$02
         stz     $057B
         lda     $32
         pha
-        ldy     #$2A
-        jsr     L124C
+        ldy     #(folder_string - string_start) ; Draw folder glyphs
+        jsr     cout_string
         pla
         sta     $32
 L1299:  jsr     L12A9
@@ -360,8 +378,10 @@ L12AD:  lda     #$99
 L12AF:  ora     #$80
 L12B1:  jmp     COUT
 
-L12B4:  MLI_CALL READ, read_params
+.proc do_read
+        MLI_CALL READ, read_params
         rts
+.endproc
 
         .macro  HIASCII arg
         .repeat .strlen(arg), i
@@ -369,6 +389,7 @@ L12B4:  MLI_CALL READ, read_params
         .endrep
 .endmacro
 
+        string_start := *
 .proc help_string
         HIASCII "RETURN: Select | TAB: Chg Vol | ESC: Back"
         .byte   0               ; null terminated
@@ -382,7 +403,7 @@ L12B4:  MLI_CALL READ, read_params
 
 .proc open_params
 params: .byte   3
-path:   .addr   $0280
+path:   .addr   prefix
 buffer: .addr   $1C00
 ref_num:.byte   0
 .endproc
@@ -396,19 +417,19 @@ ref_num:.byte   0
 .proc on_line_params
 params: .byte   2
 unit:   .byte   $60
-buffer: .addr   $0281
+buffer: .addr   prefix+1
 .endproc
         on_line_params_unit := on_line_params::unit
 
 .proc set_prefix_params
 params: .byte   1
-path:   .addr   $0280
+path:   .addr   prefix
 .endproc
 
 .proc read_params
 params: .byte   4
 ref_num:.byte   1
-buffer: .word   $2000
+buffer: .word   read_buffer
 request:.word   0
 trans:  .word   0
 .endproc
