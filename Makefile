@@ -3,7 +3,6 @@ CC65 = ~/dev/cc65/bin
 CAFLAGS = --target apple2enh --list-bytes 0
 CCFLAGS = --config apple2-asm.cfg
 
-# ProDOS file type is $F1 ($ is pesky)
 TARGETS = b.SYS
 
 .PHONY: clean all
