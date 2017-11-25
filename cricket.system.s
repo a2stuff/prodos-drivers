@@ -1,16 +1,14 @@
-;;; The Cricket Clock Driver
+;;; The Cricket Clock - ProDOS System
 ;;; Adapted from /CRICKET/PRODOS.MOD
 ;;; Original: Street Electronics Corporation (C) 1984
 
         .setcpu "6502"
         .include "apple2.inc"
 
-        ;; TODO:
-        ;; * Move ORG to $2000
-        ;; * Exit installer with MLI QUIT call
-        .org    $300
+        .org    $2000           ; System files start at $2000
 
         ;; ProDOS System Global Page
+PRODOS   := $BF00               ; MLI entry point
 DATETIME := $BF06               ; CLOCK CALENDAR ROUTINE.
 DATELO   := $BF90               ; BITS 15-9=YR, 8-5=MO, 4-0=DAY
 TIMELO   := $BF92               ; BITS 12-8=HR, 5-0=MIN; LOW-HI FORMAT.
@@ -25,22 +23,34 @@ CONTROL  := $C08B + $20         ; ACIA Control Register (read/write)
 .proc install
         ptr := $42
 
+        ;; Copy driver to target in ProDOS
         lda     DATETIME+1
         sta     ptr
         lda     DATETIME+2
         sta     ptr+1
         lda     #$4C            ; JMP opcode
         sta     DATETIME
-        lda     ROMIN
+        lda     ROMIN           ; Write bank 2
         lda     ROMIN
         ldy     #sizeof_driver-1
 loop:   lda     driver,y
         sta     (ptr),y
         dey
         bpl     loop
-        rts                     ; TODO: Replace with MLI QUIT call
+
+        ;; Exit via ProDOS to chain to next .SYSTEM file on startup
+exit:   jsr     PRODOS          ; Call the MLI
+        .byte   $65             ; CALL TYPE = QUIT
+        .addr   parmtable       ; Pointer to parameter table
+parmtable:
+        .byte   4               ; Number of parameters is 4
+        .byte   0               ; 0 is the only quit type
+        .word   0000            ; Pointer reserved for future use
+        .byte   0               ; Byte reserved for future use
+        .word   0000            ; Pointer reserved for future use
 .endproc
 
+        ;; Driver - relocatable code. Called by ProDOS to update date/time bytes
 .proc driver
         scratch := $3A          ; ZP scratch location
 

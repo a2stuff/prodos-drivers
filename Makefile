@@ -3,7 +3,7 @@ CC65 = ~/dev/cc65/bin
 CAFLAGS = --target apple2enh --list-bytes 0
 CCFLAGS = --config apple2-asm.cfg
 
-TARGETS = cricket.SYS
+TARGETS = cricket.system.SYS prodos.mod.BIN
 
 .PHONY: clean all
 all: $(TARGETS)
@@ -17,5 +17,5 @@ clean:
 %.o: %.s $(HEADERS)
 	$(CC65)/ca65 $(CAFLAGS) --listing $(basename $@).list -o $@ $<
 
-%.SYS: %.o
+%.BIN %.SYS: %.o
 	$(CC65)/ld65 $(CCFLAGS) -o $@ $<
