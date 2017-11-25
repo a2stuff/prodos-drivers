@@ -53,17 +53,17 @@ loop:   lda     driver,y
         ;; Configure SSC
         lda     #%00001011
         sta     COMMAND
-        lda     #%10011110      ; 9600 baud, 8 data bits, 1 stop bit
+        lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
         sta     CONTROL
 :       lda     STATUS
         and     #(1 << 4)       ; transmit register empty? (bit 4)
         beq     :-              ; nope, keep waiting
 
         ;; Send command
-        lda     #('@' | $80)
+        lda     #('@' | $80)    ; '@' command
         sta     TDREG
 
-        read_len := 7           ; read 7 bytes (?/M/D/Y/h/m/?)
+        read_len := 7           ; read 7 bytes (w/m/d/y/H/M/S)
 
         ;; Read response, pushing to stack
         ldy     #(read_len-1)
@@ -95,7 +95,7 @@ ready:  lda     RDREG
         bpl     rloop
 
         ;; Convert pushed response to ProDOS time field
-        pla                     ; ???
+        pla                     ; day of week (unused)
 
         pla                     ; minute
         sta     TIMELO          ; -- stored as-is (TIMELO 5-0)
@@ -120,7 +120,7 @@ ready:  lda     RDREG
         sta     DATELO
         rol     DATELO+1
 
-        pla                     ; ???
+        pla                     ; seconds (unused)
 
         ;; Restore prior state
 done:   pla                     ; restore saved command state
