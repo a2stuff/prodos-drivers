@@ -52,6 +52,9 @@ SETVID          := $FE93
         .endrep
 .endmacro
 
+.define HI(c)   ((c)|$80)
+
+
 
 ;;; --------------------------------------------------
 
@@ -146,7 +149,7 @@ L1077:  sta     BITMAP,x
         and     #$88
         bne     L1090
         lda     #$DF
-        sta     cout_mask       ; lower case to upper case
+        sta     lowercase_mask  ; lower case to upper case
 L1090:  lda     MACHID
         and     #$01
         beq     L10BD
@@ -168,18 +171,18 @@ L10BF:  lda     DATELO,y
         bpl     L10BF
         lda     #$CF
         ldy     #$FF
-        sta     L1403
-        sty     L1402
-        sta     L1470
-        sty     L146F
+        sta     ld4+2
+        sty     ld4+1
+        sta     st4+2
+        sty     st4+1
         lda     #$00
         sta     L119C
         lda     #$03
 L10DF:  ora     #$C0
-        sta     L1407
-L10E4:  sta     L140A
-        sta     L1419
-        sta     L1427
+        sta     st1+2
+L10E4:  sta     ld1+2
+        sta     ld2+2
+        sta     st2+2
         lda     #$03
         sta     L119B
 L10F2:  jsr     L13FF
@@ -217,14 +220,14 @@ L1128:  inc     L119C
         bne     L1151
         lda     #$C0
         ldy     #$15
-        sta     L1403
-        sty     L1402
+        sta     ld4+2
+        sty     ld4+1
         ldy     #$07
-        sta     L1407
-        sty     L1406
+        sta     st1+2
+        sty     st1+1
         dey
-        sta     L1470
-        sty     L146F
+        sta     st4+2
+        sty     st4+1
         lda     #$C8
         bne     L10E4
 L1151:  ldy     #$03
@@ -251,29 +254,37 @@ L119B:  .byte   $03
 L119C:  brk
 
 ;;; --------------------------------------------------
+;;; Install NSC Date Driver
 
-L119D:  lda     DATETIME+1
+.proc install_driver
+        lda     DATETIME+1
         sta     $A5
         clc
         adc     #$73
-        sta     L140E
+        sta     ld3+1
         lda     DATETIME+2
         sta     $A6
-        adc     #$00
-        sta     L140F
+        adc     #0
+        sta     ld3+2
         lda     RWRAM1
         lda     RWRAM1
         ldy     #$7C
-L11BA:  lda     L13FF,y
+
+loop:   lda     L13FF,y
         sta     ($A5),y
         dey
-        bpl     L11BA
+        bpl     loop
+
         lda     MACHID
         ora     #$01
         sta     MACHID
         lda     #$4C            ; JMP opcode
         sta     DATETIME
+
+        ;; Invoke the driver to init the time
         jsr     DATETIME
+
+        ;; Display success message
         bit     ROMIN2
         jsr     MON_HOME
         jsr     zstrout
@@ -282,6 +293,7 @@ L11BA:  lda     L13FF,y
         HIASCII "No-Slot Clock Installed  "
         .byte   0
 
+        ;; Display the current date
         lda     DATELO+1
         ror     a
         pha
@@ -291,18 +303,19 @@ L11BA:  lda     L13FF,y
         rol     a
         rol     a
         rol     a
-        and     #$0F
-        jsr     L1347
-        lda     #$AF
+        and     #%00001111
+        jsr     cout_number
+        lda     #(HI '/')
         jsr     COUT
         pla
-        and     #$1F
-        jsr     L1347
-        lda     #$AF
+        and     #%00011111
+        jsr     cout_number
+        lda     #(HI '/')
         jsr     COUT
         pla
-        jsr     L1347
+        jsr     cout_number
         jsr     CROUT
+.endproc
 
 ;;; --------------------------------------------------
 
@@ -439,9 +452,9 @@ L12E6:  jsr     zstrout
         pla
         sta     $A6
         bne     L1334
-L132A:  cmp     #('a'|$80)      ; lower-case?
+L132A:  cmp     #(HI 'a')       ; lower-case?
         bcc     :+
-        and     cout_mask       ; make upper-case if needed
+        and     lowercase_mask  ; make upper-case if needed
 :       jsr     COUT
 L1334:  inc     $A5
         bne     L133A
@@ -457,26 +470,35 @@ L133A:  ldy     #$00
 .endproc
 
 ;;; --------------------------------------------------
+;;; COUT a 2-digit number in A
 
-L1347:  ldx     #$B0
-        cmp     #$0A
-        bcc     L1354
-L134D:  sbc     #$0A
+.proc cout_number
+        ldx     #(HI '0')
+        cmp     #10             ; >= 10?
+        bcc     tens
+
+        ;; divide by 10, dividend(+'0') in x remainder in a
+:       sbc     #10
         inx
-        cmp     #$0A
-        bcs     L134D
-L1354:  pha
-        cpx     #$B0
-        beq     L135D
+        cmp     #10
+        bcs     :-
+
+tens:   pha
+        cpx     #(HI '0')
+        beq     units
         txa
-L135A:  jsr     COUT
-L135D:  pla
-        ora     #$B0
+        jsr     COUT
+
+units:  pla
+        ora     #(HI '0')
         jsr     COUT
         rts
+.endproc
 
-cout_mask:
-        .byte   $FF
+;;; --------------------------------------------------
+
+lowercase_mask:
+        .byte   $FF             ; Set to $DF on systems w/o lower-case
 
 ;;; --------------------------------------------------
 
@@ -596,36 +618,29 @@ self_name:
 
 L13FF:  php
         sei
-        .byte   $AD
-L1402:  .byte   $FF
-L1403:  bbs4    $48,$1393
-L1406:  brk
-L1407:  .byte   $C3
-        .byte   $AD
-        .byte   $04
-L140A:  .byte   $C3
-        ldx     #$08
-L140D:  .byte   $BD
-L140E:  .byte   $72
-L140F:  trb     $38
+ld4:    lda     $CFFF
+        pha
+st1:    sta     $C300           ; self-modified
+ld1:    lda     $C304           ; self-modified
+        ldx     #8
+L140D:
+ld3:    lda     $1472,x         ; self-modified
+        sec
         ror     a
 L1412:  pha
-        lda     #$00
+        lda     #0
         rol     a
         tay
-        .byte   $B9
-        brk
-L1419:  .byte   $C3
+ld2:    lda     $C300,y         ; self-modified
         pla
         lsr     a
         bne     L1412
         dex
         bne     L140D
-        ldx     #$08
-L1423:  ldy     #$08
-L1425:  .byte   $AD
-        .byte   $04
-L1427:  .byte   $C3
+        ldx     #8
+L1423:  ldy     #8
+st2:
+L1425:  lda     $C304           ; self-modified
         ror     a
         ror     $01FF,x
         dey
@@ -643,9 +658,7 @@ L1427:  .byte   $C3
 L143F:  adc     #$0A
         dey
         bne     L143F
-        .byte   $9D
-L1445:  .byte   $FF
-        .byte   $01
+        sta     $01FF,x
 L1447:  dex
         bne     L1423
         lda     $0204
@@ -665,9 +678,7 @@ L1447:  dex
         sta     DATELO+1
         pla
         bmi     L1471
-        .byte   $8D
-L146F:  .byte   $FF
-L1470:  .byte   $CF
+st4:    sta     $CFFF           ; self-modified
 L1471:  plp
         rts
 
