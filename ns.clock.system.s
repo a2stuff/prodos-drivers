@@ -54,6 +54,7 @@ SETVID          := $FE93
 
 .define HI(c)   ((c)|$80)
 
+        data_buffer = $1800
 
 
 ;;; --------------------------------------------------
@@ -139,10 +140,10 @@ L1046:  cld
         jsr     INIT
         ldx     #$17
         lda     #$01
-L1077:  sta     BITMAP,x
+:       sta     BITMAP,x
         lda     #$00
         dex
-        bne     L1077
+        bne     :-
         lda     #$CF
         sta     BITMAP
         lda     MACHID
@@ -163,6 +164,8 @@ L1090:  lda     MACHID
         .byte   0
 
         jmp     exit
+
+;;; --------------------------------------------------
 
 L10BD:  ldy     #$03
 L10BF:  lda     DATELO,y
@@ -275,9 +278,11 @@ loop:   lda     L13FF,y
         dey
         bpl     loop
 
+        ;; Set the "Recognizable Clock Card" bit
         lda     MACHID
         ora     #$01
         sta     MACHID
+
         lda     #$4C            ; JMP opcode
         sta     DATETIME
 
@@ -294,7 +299,7 @@ loop:   lda     L13FF,y
         .byte   0
 
         ;; Display the current date
-        lda     DATELO+1
+        lda     DATELO+1        ; month
         ror     a
         pha
         lda     DATELO
@@ -305,22 +310,26 @@ loop:   lda     L13FF,y
         rol     a
         and     #%00001111
         jsr     cout_number
-        lda     #(HI '/')
+
+        lda     #(HI '/')       ; /
         jsr     COUT
-        pla
+
+        pla                     ; day
         and     #%00011111
         jsr     cout_number
-        lda     #(HI '/')
+
+        lda     #(HI '/')       ; /
         jsr     COUT
-        pla
+
+        pla                     ; year
         jsr     cout_number
         jsr     CROUT
 .endproc
 
 ;;; --------------------------------------------------
 
-        ;; Twiddle reset vector?
 exit:
+        ;; Twiddle reset vector?
         lda     #$65
         sta     $03F2
         lda     #$13
@@ -331,37 +340,39 @@ exit:
 ;;; --------------------------------------------------
 ;;; Invoke next .SYSTEM file
 
-
 .define SYSTEM_SUFFIX ".SYSTEM"
+
+.proc find_next_sys_file
+        ptr := $A5
 
         lda     DEVNUM
         sta     read_block_params_unit_num
         jsr     read_block
-        lda     $1823
-        sta     L128C
-        lda     $1824
-        sta     L1298
-        lda     #$01
+        lda     data_buffer + $23
+        sta     adc1+1
+        lda     data_buffer + $24
+        sta     cmp1+1
+        lda     #1
         sta     $A7
-        lda     #$2B
-        sta     $A5
-        lda     #$18
-        sta     $A6
+        lda     #<(data_buffer + $2B)
+        sta     ptr
+        lda     #>(data_buffer + $2B)
+        sta     ptr+1
 L124F:  ldy     #$10
-        lda     ($A5),y
+        lda     (ptr),y
         cmp     #$FF            ; type=SYS ???
         bne     L1288
         ldy     #$00
-        lda     ($A5),y
+        lda     (ptr),y
         and     #$30
         beq     L1288
-        lda     ($A5),y
+        lda     (ptr),y
         and     #$0F
         sta     $A8
         tay
         ;; Compare suffix - is it .SYSTEM?
         ldx     #.strlen(SYSTEM_SUFFIX)-1
-L1268:  lda     ($A5),y
+L1268:  lda     (ptr),y
         cmp     suffix,x
         bne     L1288
         dey
@@ -370,7 +381,7 @@ L1268:  lda     ($A5),y
         ldy     self_name
         cpy     $A8
         bne     L12BE
-:       lda     ($A5),y
+:       lda     (ptr),y
         cmp     self_name,y
         bne     L12BE
         dey
@@ -379,17 +390,16 @@ L1268:  lda     ($A5),y
         ror     found_self_flag
 
         ;; go on to next file (???)
-L1288:  lda     $A5
+L1288:  lda     ptr
         clc
-        .byte   $69
-L128C:  rmb2    $85
-        lda     $90
-        .byte   $02
-        inc     $A6
-        inc     $A7
+adc1:   adc     #$27
+        sta     ptr
+        bcc     L1293
+        inc     ptr+1
+L1293:  inc     $A7
         lda     $A7
-        .byte   $C9
-L1298:  ora     $B490
+cmp1:   cmp     #$0D
+        bcc     $124F
         lda     $1802
         sta     read_block_params_block_num
         lda     $1803
@@ -399,10 +409,10 @@ L1298:  ora     $B490
         jsr     read_block
         lda     #$00
         sta     $A7
-        lda     #$04
-        sta     $A5
-        lda     #$18
-        sta     $A6
+        lda     #<(data_buffer + $04)
+        sta     ptr
+        lda     #>(data_buffer + $04)
+        sta     ptr+1
         jmp     L124F
 
 L12BE:  bit     found_self_flag
@@ -417,10 +427,11 @@ L12C8:  dex
         eor     #'/'
         asl     a
         bne     L12C8
-L12D3:  ldy     #$00
+
+L12D3:  ldy     #0
 L12D5:  iny
         inx
-L12D7:  lda     ($A5),y
+L12D7:  lda     (ptr),y
         sta     PATHNAME,x
         cpy     $A8
         bcc     L12D5
@@ -441,30 +452,33 @@ L12E6:  jsr     zstrout
         bpl     :-
         bit     KBDSTRB
         jmp     quit
+.endproc
 
 ;;; --------------------------------------------------
 ;;; Output a high-ascii, null-terminated string.
 ;;; String immediately follows the JSR.
 
 .proc zstrout
+        ptr := $A5
+
         pla
-        sta     $A5
+        sta     ptr
         pla
-        sta     $A6
+        sta     ptr+1
         bne     L1334
 L132A:  cmp     #(HI 'a')       ; lower-case?
         bcc     :+
         and     lowercase_mask  ; make upper-case if needed
 :       jsr     COUT
-L1334:  inc     $A5
+L1334:  inc     ptr
         bne     L133A
-        inc     $A6
+        inc     ptr+1
 L133A:  ldy     #$00
-        lda     ($A5),y
+        lda     (ptr),y
         bne     L132A
-        lda     $A6
+        lda     ptr+1
         pha
-        lda     $A5
+        lda     ptr
         pha
         rts
 .endproc
@@ -526,7 +540,7 @@ lowercase_mask:
 .proc read_block_params
         .byte   3               ; param_count
 unit_num:  .byte   $60          ; unit_num
-        .addr   $1800           ; data_buffer
+        .addr   data_buffer     ; data_buffer
 block_num: .word   2            ; block_num
 .endproc
         read_block_params_unit_num := read_block_params::unit_num
@@ -584,7 +598,7 @@ block_num: .word   2            ; block_num
 .proc open_params
         .byte   3               ; param_count
         .addr   PATHNAME        ; pathname
-        .addr   $1800           ; io_buffer
+        .addr   data_buffer     ; io_buffer
 ref_num:.byte   1               ; ref_num
 .endproc
         open_params_ref_num := open_params::ref_num
