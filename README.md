@@ -1,6 +1,8 @@
-# Cricket Clock Driver
+# The Cricket - ProDOS Clock Driver
 
 I acquired a Cricket sound/clock peripheral on eBay. Therefore it is now critical that we have a conforming ProDOS clock driver for it.
+
+> STATUS: Work In Progress
 
 ## Background
 
