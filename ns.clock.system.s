@@ -72,7 +72,8 @@ SETVID          := $FE93
 
 init:   sec
         bcs     :+
-        .byte   $04, $21, $91   ; ????
+
+        .byte   $04, $21, $91   ; 4/21/91
 
 ;;; --------------------------------------------------
 
@@ -83,11 +84,13 @@ init:   sec
 :       ldx     #5              ; pages
         ldy     #0
 load:   lda     src,y           ; self-modified
-store:  sta     dst,y           ; self-modified
+        load_hi := *-1
+        sta     dst,y           ; self-modified
+        store_hi := *-1
         iny
         bne     load
-        inc     load+2
-        inc     store+2
+        inc     load_hi
+        inc     store_hi
         dex
         beq     find_self_name
         jmp     load
@@ -174,9 +177,7 @@ cloop:  iny
 
         .byte   CR
         HIASCII "Previous Clock Installed!"
-        .byte   BELL
-        .byte   CR
-        .byte   0
+        .byte   BELL, CR, 0
 
         jmp     exit
 .endproc
@@ -269,12 +270,9 @@ not_found:
 
         .byte   CR
         HIASCII "No-SLot Clock Not Found."
-        .byte   CR
-        .byte   CR
+        .byte   CR, CR
         HIASCII "Clock Not Installed!"
-        .byte   BELL
-        .byte   CR
-        .byte   0
+        .byte   BELL, CR, 0
 
         jmp     exit
 
@@ -388,9 +386,9 @@ exit:
         jsr     read_block
 
         lda     data_buffer + entry_length
-        sta     adc1+1
+        sta     entry_length_mod
         lda     data_buffer + entries_per_block
-        sta     cmp1+1
+        sta     entries_per_block_mod
         lda     #1
         sta     $A7             ; ???
 
@@ -443,13 +441,15 @@ entry:  ldy     #file_type      ; file_type
         ;; Move to the next entry
 next:   lda     ptr
         clc
-adc1:   adc     #$27            ; self-modified: entry_length
+        adc     #$27            ; self-modified: entry_length
+        entry_length_mod := *-1
         sta     ptr
         bcc     :+
         inc     ptr+1
 :       inc     $A7
         lda     $A7
-cmp1:   cmp     #$0D            ; self-modified: entries_per_block
+        cmp     #$0D            ; self-modified: entries_per_block
+        entries_per_block_mod := *-1
         bcc     entry
 
         lda     data_buffer + next_block
@@ -498,12 +498,9 @@ append: ldy     #0
 not_found:
         jsr     zstrout
 
-        .byte   CR
-        .byte   CR
-        .byte   CR
+        .byte   CR, CR, CR
         HIASCII "* Unable to find next '.SYSTEM' file *"
-        .byte   CR
-        .byte   0
+        .byte   CR, 0
 
         bit     KBDSTRB
 :       lda     KBD
@@ -519,22 +516,25 @@ not_found:
 .proc zstrout
         ptr := $A5
 
-        pla
+        pla                     ; read address from stack
         sta     ptr
         pla
         sta     ptr+1
-        bne     L1334
-L132A:  cmp     #(HI 'a')       ; lower-case?
+
+        bne     skip            ; ???
+
+next:   cmp     #(HI 'a')       ; lower-case?
         bcc     :+
         and     lowercase_mask  ; make upper-case if needed
 :       jsr     COUT
-L1334:  inc     ptr
-        bne     L133A
+skip:   inc     ptr
+        bne     :+
         inc     ptr+1
-L133A:  ldy     #$00
+:       ldy     #$00
         lda     (ptr),y
-        bne     L132A
-        lda     ptr+1
+        bne     next
+
+        lda     ptr+1           ; restore address to stack
         pha
         lda     ptr
         pha
@@ -630,9 +630,7 @@ block_num: .word   2            ; block_num - block 2 is volume directory
         pha
         jsr     zstrout
 
-        .byte   CR
-        .byte   CR
-        .byte   CR
+        .byte   CR, CR, CR
         HIASCII "**  Disk Error $"
         .byte   0
 
@@ -641,8 +639,7 @@ block_num: .word   2            ; block_num - block 2 is volume directory
         jsr     zstrout
 
         HIASCII "  **"
-        .byte   CR
-        .byte   0
+        .byte   CR, 0
 
         bit KBDSTRB
 :       lda     KBD
@@ -691,13 +688,13 @@ self_name:
 driver:
         php
         sei
-ld4:    lda     $CFFF
+ld4:    lda     $CFFF           ; self-modified
         pha
 st1:    sta     $C300           ; self-modified
 ld1:    lda     $C304           ; self-modified
         ldx     #8
 L140D:
-ld3:    lda     $1472,x         ; self-modified
+ld3:    lda     unlock-1,x      ; self-modified
         sec
         ror     a
 L1412:  pha
@@ -713,11 +710,11 @@ ld2:    lda     $C300,y         ; self-modified
         ldx     #8
 L1423:  ldy     #8
 st2:
-L1425:  lda     $C304           ; self-modified
+:       lda     $C304           ; self-modified
         ror     a
         ror     $01FF,x
         dey
-        bne     L1425
+        bne     :-
         lda     $01FF,x
         lsr     a
         lsr     a
@@ -728,9 +725,9 @@ L1425:  lda     $C304           ; self-modified
         lda     $01FF,x
         and     #$0F
         clc
-L143F:  adc     #$0A
+:       adc     #$0A
         dey
-        bne     L143F
+        bne     :-
         sta     $01FF,x
 L1447:  dex
         bne     L1423
@@ -750,9 +747,9 @@ L1447:  dex
         rol     a
         sta     DATELO+1
         pla
-        bmi     L1471
+        bmi     done
 st4:    sta     $CFFF           ; self-modified
-L1471:  plp
+done:   plp
         rts
 
 unlock:
@@ -762,6 +759,8 @@ unlock:
         .byte   $00
 
         sizeof_driver := * - driver
+
+        .assert (* - init <= $500), error, "Must fit in 5 pages"
 
 ;;; --------------------------------------------------
 ;;; Junk from here on...
