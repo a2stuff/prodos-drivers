@@ -130,19 +130,21 @@ cloop:  iny
         cld
         bit     ROMIN2
 
-        lda     #$46            ; reset vector???
+        ;; Update reset vector
+        lda     #<pre_install
         sta     $03F2
-        lda     #$10
+        lda     #>pre_install
         sta     $03F3
         eor     #$A5
         sta     $03F4
 
-        lda     #$95            ; Ctrl+U
+        lda     #$95            ; Ctrl+U (quit 80 col firmware)
         jsr     COUT
 
-        ldx     #$FF
+        ldx     #$FF            ; Reset stack
         txs
-        sta     CLR80VID
+
+        sta     CLR80VID        ; Reset I/O
         sta     CLRALTCHAR
         jsr     SETVID
         jsr     SETKBD
@@ -182,14 +184,15 @@ cloop:  iny
 ;;; --------------------------------------------------
 ;;; Detect NSC
 
-detect_nsc:
+.proc detect_nsc
         ;; Preserve date/time
         ldy     #3              ; copy 4 bytes
 :       lda     DATELO,y
-        sta     L1197,y
+        sta     saved_dt,y
         dey
         bpl     :-
 
+        ;; Check slot ROMs
         lda     #$CF
         ldy     #$FF
         sta     ld4+2
@@ -197,16 +200,16 @@ detect_nsc:
         sta     st4+2
         sty     st4+1
         lda     #$00
-        sta     L119C
+        sta     slot
         lda     #$03
 L10DF:  ora     #$C0
         sta     st1+2
 L10E4:  sta     ld1+2
         sta     ld2+2
         sta     st2+2
-        lda     #$03
-        sta     L119B
-L10F2:  jsr     driver
+        lda     #3
+        sta     tries
+try:    jsr     driver
         lda     DATELO+1
         ror     a
         lda     DATELO
@@ -215,30 +218,30 @@ L10F2:  jsr     driver
         rol     a
         rol     a
         and     #$0F
-        beq     L1128
+        beq     next
         cmp     #$0D
-        bcs     L1128
+        bcs     next
         lda     DATELO
-L110B:  and     #$1F
-        beq     L1128
+        and     #$1F
+        beq     next
         cmp     #$20
-        bcs     L1128
+        bcs     next
         .byte   $AD
         .byte   $93
-L1115:  bbs3    $C9,$1130
-        bcs     L1128
+        bbs3    $C9,$1130
+        bcs     next
         lda     TIMELO
         cmp     #$3C
-        bcs     L1128
-        dec     L119B
-        bne     L10F2
+        bcs     next
+        dec     tries
+        bne     try
         .byte   $F0
-L1127:  .byte   $75
-L1128:  inc     L119C
-        lda     L119C
-        cmp     #$08
+        .byte   $75
+next:   inc     slot
+        lda     slot
+        cmp     #8
         bcc     L10DF
-        bne     L1151
+        bne     not_found
         lda     #$C0
         ldy     #$15
         sta     ld4+2
@@ -253,8 +256,9 @@ L1128:  inc     L119C
         bne     L10E4
 
         ;; Restore date/time
-L1151:  ldy     #$03
-:       lda     L1197,y
+not_found:
+        ldy     #3
+:       lda     saved_dt,y
         sta     DATELO,y
         dey
         bpl     :-
@@ -274,9 +278,11 @@ L1151:  ldy     #$03
 
         jmp     exit
 
-L1197:  .byte   0, 0, 0, 0
-L119B:  .byte   $03
-L119C:  brk
+saved_dt:
+        .byte   0, 0, 0, 0
+tries:  .byte   3
+slot:   .byte   0
+.endproc
 
 ;;; --------------------------------------------------
 ;;; Install NSC Date Driver
@@ -353,10 +359,10 @@ loop:   lda     driver,y
 ;;; --------------------------------------------------
 
 exit:
-        ;; Twiddle reset vector?
-        lda     #$65
+        ;; Update reset vector
+        lda     #<quit
         sta     $03F2
-        lda     #$13
+        lda     #>quit
         sta     $03F3
         eor     #$A5
         sta     $03F4
@@ -370,10 +376,12 @@ exit:
         ptr := $A5
         len := $A8
 
-        ;; Volume Directory Header structure
-        entry_length := $23
-        entries_per_block := $24
-        header_length := $2B
+        ;; Volume Directory Block Header structure
+        prev_block              := $00
+        next_block              := $02
+        entry_length            := $23
+        entries_per_block       := $24
+        header_length           := $2B
 
         lda     DEVNUM          ; stick with most recent device
         sta     read_block_params_unit_num
@@ -437,19 +445,19 @@ next:   lda     ptr
         clc
 adc1:   adc     #$27            ; self-modified: entry_length
         sta     ptr
-        bcc     L1293
+        bcc     :+
         inc     ptr+1
-L1293:  inc     $A7
+:       inc     $A7
         lda     $A7
 cmp1:   cmp     #$0D            ; self-modified: entries_per_block
         bcc     entry
 
-        lda     data_buffer + $2
+        lda     data_buffer + next_block
         sta     read_block_params_block_num
-        lda     data_buffer + $3
+        lda     data_buffer + next_block + 1
         sta     read_block_params_block_num+1
         ora     read_block_params_block_num
-        beq     not_found
+        beq     not_found       ; last block has next=0
         jsr     read_block
         lda     #$00
         sta     $A7
@@ -591,7 +599,7 @@ lowercase_mask:
         .byte   3               ; param_count
 unit_num:  .byte   $60          ; unit_num
         .addr   data_buffer     ; data_buffer
-block_num: .word   2            ; block_num
+block_num: .word   2            ; block_num - block 2 is volume directory
 .endproc
         read_block_params_unit_num := read_block_params::unit_num
         read_block_params_block_num := read_block_params::block_num
@@ -673,7 +681,6 @@ found_self_flag:
         .byte   0
 
 suffix: .byte   SYSTEM_SUFFIX
-
 
 self_name:
         PASCAL_STRING "NS.CLOCK.SYSTEM"
@@ -757,38 +764,54 @@ unlock:
         sizeof_driver := * - driver
 
 ;;; --------------------------------------------------
-;;; Junk from here on?
+;;; Junk from here on...
 
-        ;; ??
-        .byte   $B3
-
-        pla
-        adc     ($F0)
-
-
-        .res    6, $2a
-        .byte   " /RAM ", $8D, $00
-        .res    12, $2a
-        .byte   " /CONTIERI ", $8D, $00
-        .res    7, $2a
-        .byte   $03, "/HD ", $8D, $00
-        .res    27, $2a
-        .byte   $6a, $2d
-        .res    19, $2a
-        .byte   $31, $f0, $03, $4c, $43, $3a, $ad, $3e
-        .res    7, $2a
-L14F4:  .res    2, $2a
-L14F6:  .res    99, $2a
-L1559:  .res    12, $2a
-        .byte   $CA, $FC, $30, $F0, $07, $C9, $4C, $F0
-        .res    120, $2a
-        .byte   0, 0, 0
-
-        lda     $3150
-        bne     L15EE
-
-;        000005e0  2a 2a 2a 2a 2a 00 00 00  ad 50 31 d0 01 2a 2a 2a  |*****....P1..***|
-;        000005f0  2a 2a 2a 2a 2a 2a 2a 2a  2a 2a 2a 2a 2a 2a 2a 2a  |****************|
-
-        .byte   $2a
-L15EE:  .res    18, $2a
+        .byte $b3, $68, $72, $f0, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $20, $2f, $52, $41, $4d, $20
+        .byte $8d, $00, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $20, $2f
+        .byte $43, $4f, $4e, $54, $49, $45, $52, $49
+        .byte $20, $8d, $00, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $03, $2f, $48, $44, $20, $8d
+        .byte $00, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $6a, $2d, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $31, $f0, $03, $4c, $43, $3a, $ad
+        .byte $3e, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $ca, $fc, $30, $f0, $07, $c9, $4c
+        .byte $f0, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $00, $00, $00, $ad, $50, $31, $d0
+        .byte $01, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
+        .byte $2a, $2a, $2a, $2a
