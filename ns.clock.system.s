@@ -46,6 +46,11 @@ SETNORM         := $FE84
 SETKBD          := $FE89
 SETVID          := $FE93
 
+.macro PASCAL_STRING arg
+        .byte   .strlen(arg)
+        .byte   arg
+.endmacro
+
 .macro  HIASCII arg
         .repeat .strlen(arg), i
         .byte   .strat(arg, i) | $80
@@ -98,7 +103,7 @@ store:  sta     dst,y           ; self-modified
         lda     #0
         sta     $A8
         ldx     PATHNAME
-        beq     L1046
+        beq     pre_install
 floop:  inc     $A8
         dex
         beq     copy
@@ -117,19 +122,24 @@ cloop:  iny
         bcc     cloop
         sty     self_name
 .endproc
+        ;; fall through...
 
 ;;; --------------------------------------------------
 
-L1046:  cld
+.proc pre_install
+        cld
         bit     ROMIN2
-        lda     #$46
+
+        lda     #$46            ; reset vector???
         sta     $03F2
         lda     #$10
         sta     $03F3
         eor     #$A5
         sta     $03F4
-        lda     #$95
+
+        lda     #$95            ; Ctrl+U
         jsr     COUT
+
         ldx     #$FF
         txs
         sta     CLR80VID
@@ -138,22 +148,25 @@ L1046:  cld
         jsr     SETKBD
         jsr     SETNORM
         jsr     INIT
-        ldx     #$17
-        lda     #$01
+
+        ldx     #$17            ; Update system page bitmap
+        lda     #1
 :       sta     BITMAP,x
-        lda     #$00
+        lda     #0
         dex
         bne     :-
         lda     #$CF
         sta     BITMAP
+
         lda     MACHID
-        and     #$88
-        bne     L1090
+        and     #$88            ; //e or //c ?
+        bne     :+
         lda     #$DF
         sta     lowercase_mask  ; lower case to upper case
-L1090:  lda     MACHID
-        and     #$01
-        beq     L10BD
+:       lda     MACHID
+        and     #$01            ; existing clock card?
+        beq     detect_nsc      ; nope, check for NSC
+
         jsr     MON_HOME
         jsr     zstrout
 
@@ -164,14 +177,19 @@ L1090:  lda     MACHID
         .byte   0
 
         jmp     exit
+.endproc
 
 ;;; --------------------------------------------------
+;;; Detect NSC
 
-L10BD:  ldy     #$03
-L10BF:  lda     DATELO,y
+detect_nsc:
+        ;; Preserve date/time
+        ldy     #3              ; copy 4 bytes
+:       lda     DATELO,y
         sta     L1197,y
         dey
-        bpl     L10BF
+        bpl     :-
+
         lda     #$CF
         ldy     #$FF
         sta     ld4+2
@@ -188,7 +206,7 @@ L10E4:  sta     ld1+2
         sta     st2+2
         lda     #$03
         sta     L119B
-L10F2:  jsr     L13FF
+L10F2:  jsr     driver
         lda     DATELO+1
         ror     a
         lda     DATELO
@@ -233,11 +251,15 @@ L1128:  inc     L119C
         sty     st4+1
         lda     #$C8
         bne     L10E4
+
+        ;; Restore date/time
 L1151:  ldy     #$03
-L1153:  lda     L1197,y
+:       lda     L1197,y
         sta     DATELO,y
         dey
-        bpl     L1153
+        bpl     :-
+
+        ;; Show failure message
         jsr     MON_HOME
         jsr     zstrout
 
@@ -260,21 +282,23 @@ L119C:  brk
 ;;; Install NSC Date Driver
 
 .proc install_driver
+        ptr := $A5
+
         lda     DATETIME+1
-        sta     $A5
+        sta     ptr
         clc
         adc     #$73
         sta     ld3+1
         lda     DATETIME+2
-        sta     $A6
+        sta     ptr+1
         adc     #0
         sta     ld3+2
         lda     RWRAM1
         lda     RWRAM1
-        ldy     #$7C
+        ldy     #sizeof_driver-1
 
-loop:   lda     L13FF,y
-        sta     ($A5),y
+loop:   lda     driver,y
+        sta     (ptr),y
         dey
         bpl     loop
 
@@ -344,68 +368,88 @@ exit:
 
 .proc find_next_sys_file
         ptr := $A5
+        len := $A8
 
-        lda     DEVNUM
+        ;; Volume Directory Header structure
+        entry_length := $23
+        entries_per_block := $24
+        header_length := $2B
+
+        lda     DEVNUM          ; stick with most recent device
         sta     read_block_params_unit_num
         jsr     read_block
-        lda     data_buffer + $23
+
+        lda     data_buffer + entry_length
         sta     adc1+1
-        lda     data_buffer + $24
+        lda     data_buffer + entries_per_block
         sta     cmp1+1
         lda     #1
-        sta     $A7
-        lda     #<(data_buffer + $2B)
+        sta     $A7             ; ???
+
+        lda     #<(data_buffer + header_length)
         sta     ptr
-        lda     #>(data_buffer + $2B)
+        lda     #>(data_buffer + header_length)
         sta     ptr+1
-L124F:  ldy     #$10
+
+        ;; File Entry structure
+        storage_type := $00
+        name_length := $00
+        file_name := $01
+        file_type := $10
+
+        ;; Process directory entry
+entry:  ldy     #file_type      ; file_type
         lda     (ptr),y
-        cmp     #$FF            ; type=SYS ???
-        bne     L1288
-        ldy     #$00
+        cmp     #$FF            ; type=SYS
+        bne     next
+        ldy     #storage_type
         lda     (ptr),y
-        and     #$30
-        beq     L1288
+        and     #$30            ; regular file (not directory, pascal)
+        beq     next
         lda     (ptr),y
-        and     #$0F
-        sta     $A8
+        and     #$0F            ; name_length
+        sta     len
         tay
+
         ;; Compare suffix - is it .SYSTEM?
         ldx     #.strlen(SYSTEM_SUFFIX)-1
-L1268:  lda     (ptr),y
+:       lda     (ptr),y
         cmp     suffix,x
-        bne     L1288
+        bne     next
         dey
         dex
-        bpl     L1268
+        bpl     :-
+
+        ;; Yes; is it *this* .SYSTEM file?
         ldy     self_name
-        cpy     $A8
-        bne     L12BE
+        cpy     len
+        bne     handle_sys_file
 :       lda     (ptr),y
         cmp     self_name,y
-        bne     L12BE
+        bne     handle_sys_file
         dey
         bne     :-
         sec
         ror     found_self_flag
 
-        ;; go on to next file (???)
-L1288:  lda     ptr
+        ;; Move to the next entry
+next:   lda     ptr
         clc
-adc1:   adc     #$27
+adc1:   adc     #$27            ; self-modified: entry_length
         sta     ptr
         bcc     L1293
         inc     ptr+1
 L1293:  inc     $A7
         lda     $A7
-cmp1:   cmp     #$0D
-        bcc     $124F
-        lda     $1802
+cmp1:   cmp     #$0D            ; self-modified: entries_per_block
+        bcc     entry
+
+        lda     data_buffer + $2
         sta     read_block_params_block_num
-        lda     $1803
+        lda     data_buffer + $3
         sta     read_block_params_block_num+1
         ora     read_block_params_block_num
-        beq     L12E6
+        beq     not_found
         jsr     read_block
         lda     #$00
         sta     $A7
@@ -413,32 +457,38 @@ cmp1:   cmp     #$0D
         sta     ptr
         lda     #>(data_buffer + $04)
         sta     ptr+1
-        jmp     L124F
+        jmp     entry
 
-L12BE:  bit     found_self_flag
-        bpl     L1288
+        ;; Found a .SYSTEM file which is not this one; invoke
+        ;; it if follows this one.
+handle_sys_file:
+        bit     found_self_flag
+        bpl     next
 
-
+        ;; Compose the path to invoke. First walk self path
+        ;; backwards to '/'.
         ldx     PATHNAME
-        beq     L12D3
-L12C8:  dex
-        beq     L12D3
+        beq     append
+:       dex
+        beq     append
         lda     PATHNAME,x
         eor     #'/'
         asl     a
-        bne     L12C8
+        bne     :-
 
-L12D3:  ldy     #0
-L12D5:  iny
+        ;; Now append name of found file.
+append: ldy     #0
+:       iny
         inx
-L12D7:  lda     (ptr),y
+        lda     (ptr),y
         sta     PATHNAME,x
-        cpy     $A8
-        bcc     L12D5
+        cpy     len
+        bcc     :-
         stx     PATHNAME
         jmp     invoke_system_file
 
-L12E6:  jsr     zstrout
+not_found:
+        jsr     zstrout
 
         .byte   CR
         .byte   CR
@@ -626,11 +676,13 @@ suffix: .byte   SYSTEM_SUFFIX
 
 
 self_name:
-        .byte   $F, "NS.CLOCK.SYSTEM"
+        PASCAL_STRING "NS.CLOCK.SYSTEM"
 
 ;;; --------------------------------------------------
+;;; The driver - copied into ProDOS
 
-L13FF:  php
+driver:
+        php
         sei
 ld4:    lda     $CFFF
         pha
@@ -696,14 +748,20 @@ st4:    sta     $CFFF           ; self-modified
 L1471:  plp
         rts
 
-        .byte   $5C
-        .byte   $A3
-        dec     a
-        cmp     $5C
-        .byte   $A3
-        dec     a
-        cmp     $00
+unlock:
+        ;; NSC unlock sequence
+        .byte   $5C, $A3, $3A, $C5
+        .byte   $5C, $A3, $3A, $C5
+        .byte   $00
+
+        sizeof_driver := * - driver
+
+;;; --------------------------------------------------
+;;; Junk from here on?
+
+        ;; ??
         .byte   $B3
+
         pla
         adc     ($F0)
 
