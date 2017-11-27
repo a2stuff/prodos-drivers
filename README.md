@@ -17,7 +17,7 @@ The included disks include:
 
 Like the `NS.CLOCK.SYSTEM` (by "CAP") ideally we would have:
 
-* A ProDOS `.SYSTEM` file
-* Which detects the presence of a Cricket
-* And if found, installs the driver in memory following the ProDOS clock driver protocol
-* And finally chains to the next `.SYSTEM` file (e.g. `BASIC.SYSTEM`)
+* [x] A ProDOS `.SYSTEM` file
+* [ ] Detects the presence of a Cricket
+* [x] Installs a driver in memory following the ProDOS clock driver protocol
+* [x] Chains to the next `.SYSTEM` file (e.g. `BASIC.SYSTEM`)
