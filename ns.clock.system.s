@@ -97,7 +97,7 @@ sys_start:
         sec
         bcs     relocate
 
-        .byte   $04, $21, $91   ; 4/21/91
+        .byte   $11, $26, $17   ; 11/26/17 - version date stamp
 
 ;;; ------------------------------------------------------------
 ;;; Relocate this code from $2000 (.SYSTEM start location) to $1000
@@ -209,10 +209,7 @@ cloop:  iny
         and     #$01            ; existing clock card?
         beq     detect_nsc      ; nope, check for NSC
 
-        jsr     MON_HOME
-        jsr     zstrout
-        HIASCIIZ CR, "Previous Clock Installed!", BELL, CR
-
+        ;; Chain with no message
         jmp     launch_next_sys_file
 .endproc
 
@@ -305,8 +302,7 @@ not_found:
         ;; Show failure message
         jsr     MON_HOME
         jsr     zstrout
-        HIASCIIZ CR, "No-SLot Clock Not Found.", CR, CR,\
-                 "Clock Not Installed!", BELL, CR
+        HIASCIIZ CR, CR, CR, "No-Slot Clock - Not Found."
         jmp     launch_next_sys_file
 
 saved:  .byte   0, 0, 0, 0
@@ -355,7 +351,7 @@ loop:   lda     driver,y
         bit     ROMIN2
         jsr     MON_HOME
         jsr     zstrout
-        HIASCIIZ CR, "No-Slot Clock Installed  "
+        HIASCIIZ CR, CR, CR, "No-Slot Clock - Installed  "
 
         ;; Display the current date
         lda     DATELO+1        ; month
@@ -795,56 +791,3 @@ unlock:
 ;;; ------------------------------------------------------------
 
 sys_end:
-
-;;; ------------------------------------------------------------
-;;; Junk from here on...
-
-        .byte $b3, $68, $72, $f0, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $20, $2f, $52, $41, $4d, $20
-        .byte $8d, $00, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $20, $2f
-        .byte $43, $4f, $4e, $54, $49, $45, $52, $49
-        .byte $20, $8d, $00, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $03, $2f, $48, $44, $20, $8d
-        .byte $00, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $6a, $2d, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $31, $f0, $03, $4c, $43, $3a, $ad
-        .byte $3e, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $ca, $fc, $30, $f0, $07, $c9, $4c
-        .byte $f0, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $00, $00, $00, $ad, $50, $31, $d0
-        .byte $01, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a, $2a, $2a, $2a, $2a
-        .byte $2a, $2a, $2a, $2a
