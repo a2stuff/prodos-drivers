@@ -4,20 +4,11 @@
 
         .setcpu "6502"
         .include "apple2.inc"
+        .include "opcodes.inc"
+
+        .include "./common.inc"
 
         .org    $300
-
-        ;; ProDOS System Global Page
-DATETIME := $BF06               ; CLOCK CALENDAR ROUTINE.
-DATELO   := $BF90               ; BITS 15-9=YR, 8-5=MO, 4-0=DAY
-TIMELO   := $BF92               ; BITS 12-8=HR, 5-0=MIN; LOW-HI FORMAT.
-
-        ;; SSC I/O Registers (for Slot 2)
-TDREG    := $C088 + $20         ; ACIA Transmit Register (write)
-RDREG    := $C088 + $20         ; ACIA Receive Register (read)
-STATUS   := $C089 + $20         ; ACIA Status/Reset Register
-COMMAND  := $C08A + $20         ; ACIA Command Register (read/write)
-CONTROL  := $C08B + $20         ; ACIA Control Register (read/write)
 
 .proc install
         ptr := $42
@@ -27,7 +18,7 @@ CONTROL  := $C08B + $20         ; ACIA Control Register (read/write)
         sta     ptr
         lda     DATETIME+2
         sta     ptr+1
-        lda     #$4C            ; JMP opcode
+        lda     #OPC_JMP_abs    ; JMP opcode
         sta     DATETIME
         lda     ROMIN           ; Write bank 2
         lda     ROMIN

@@ -11,86 +11,15 @@
         .include "apple2.inc"
         .include "opcodes.inc"
 
-        ;; ASCII
-BELL            := $07
-CR              := $0D
+        .include "./common.inc"
 
-        ;; Constants
-MAX_DW          := $FFFF
-
-        ;; Softswitches
-CLR80VID        := $C00C        ; 40 Columns
-ROMIN2          := $C082        ; Read ROM; no write
-RWRAM1          := $C08B        ; Read/write RAM bank 1
-
-        ;; ProDOS
-PRODOS          := $BF00
-DATETIME        := $BF06
-DEVNUM          := $BF30
-BITMAP          := $BF58
-BITMAP_SIZE     := 24           ; 24 bytes in bitmap
-DATELO          := $BF90
-TIMELO          := $BF92
-MACHID          := $BF98
-
-SYS_ADDR        := $2000
-PATHNAME        := $0280
-MLI_QUIT        := $65
-MLI_READ_BLOCK  := $80
-MLI_OPEN        := $C8
-MLI_READ        := $CA
-MLI_CLOSE       := $CC
-
-.macro PRODOS_CALL call, params
-        jsr     PRODOS
-        .byte   call
-        .addr   params
-.endmacro
-
-        ;; Monitor
-INIT            := $FB2F
-MON_HOME        := $FC58
-CROUT           := $FD8E
-PRBYTE          := $FDDA
-COUT            := $FDED
-SETNORM         := $FE84
-SETKBD          := $FE89
-SETVID          := $FE93
-
-;;; ------------------------------------------------------------
-
-.macro PASCAL_STRING arg
-        .byte   .strlen(arg)
-        .byte   arg
-.endmacro
-
-.macro  HIASCII arg, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-        .if .blank(arg)
-          .exitmacro
-        .endif
-        .if .match ({arg}, "")  ; string?
-          .repeat .strlen(arg), i
-            .byte .strat(arg, i) | $80
-          .endrep
-        .else                   ; otherwise assume number/char/identifier
-          .byte (arg | $80)
-        .endif
-        HIASCII arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-.endmacro
-
-.macro  HIASCIIZ arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-        HIASCII arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-        .byte   0
-.endmacro
-
-.define HI(c)   ((c)|$80)
 
 ;;; ------------------------------------------------------------
 
         data_buffer = $1800
 
         .define SYSTEM_SUFFIX ".SYSTEM"
-
+        .define PRODUCT "No-Slot Clock"
 
 ;;; ------------------------------------------------------------
 
@@ -135,11 +64,12 @@ load:   lda     src,y           ; self-modified
 ;;; $280 with or without a path prefix. This is used when searching
 ;;; for the next .SYSTEM file to execute.
 
+.proc find_self_name
         ;; Search pathname buffer backwards for '/', then
         ;; copy name into |self_name|; this is used later
         ;; to find/invoke the next .SYSTEM file.
-.proc find_self_name
-        ;; find '/' (which may not be present, prefix is optional)
+
+        ;; Find '/' (which may not be present, prefix is optional)
         lda     #0
         sta     $A8
         ldx     PATHNAME
@@ -309,7 +239,7 @@ not_found:
         ;; Show failure message
         jsr     MON_HOME
         jsr     zstrout
-        HIASCIIZ CR, CR, CR, "No-Slot Clock - Not Found."
+        HIASCIIZ CR, CR, CR, PRODUCT, " - Not Found."
         jmp     launch_next_sys_file
 
 saved:  .byte   0, 0, 0, 0
@@ -358,7 +288,7 @@ loop:   lda     driver,y
         bit     ROMIN2
         jsr     MON_HOME
         jsr     zstrout
-        HIASCIIZ CR, CR, CR, "No-Slot Clock - Installed  "
+        HIASCIIZ CR, CR, CR, PRODUCT, " - Installed  "
 
         ;; Display the current date
         lda     DATELO+1        ; month
@@ -401,43 +331,31 @@ loop:   lda     driver,y
         sta     $03F4
 
         ptr := $A5
+        num := $A7
         len := $A8
-
-        ;; Volume Directory Block Header structure
-        prev_block              := $00
-        next_block              := $02
-        entry_length            := $23
-        entries_per_block       := $24
-        header_length           := $2B
 
         lda     DEVNUM          ; stick with most recent device
         sta     read_block_params_unit_num
         jsr     read_block
 
-        lda     data_buffer + entry_length
+        lda     data_buffer + VolumeDirectoryBlockHeader::entry_length
         sta     entry_length_mod
-        lda     data_buffer + entries_per_block
+        lda     data_buffer + VolumeDirectoryBlockHeader::entries_per_block
         sta     entries_per_block_mod
         lda     #1
-        sta     $A7             ; ???
+        sta     num
 
-        lda     #<(data_buffer + header_length)
+        lda     #<(data_buffer + VolumeDirectoryBlockHeader::header_length)
         sta     ptr
-        lda     #>(data_buffer + header_length)
+        lda     #>(data_buffer + VolumeDirectoryBlockHeader::header_length)
         sta     ptr+1
 
-        ;; File Entry structure
-        storage_type := $00
-        name_length := $00
-        file_name := $01
-        file_type := $10
-
         ;; Process directory entry
-entry:  ldy     #file_type      ; file_type
+entry:  ldy     #FileEntry::file_type      ; file_type
         lda     (ptr),y
         cmp     #$FF            ; type=SYS
         bne     next
-        ldy     #storage_type
+        ldy     #FileEntry::storage_type
         lda     (ptr),y
         and     #$30            ; regular file (not directory, pascal)
         beq     next
@@ -475,21 +393,21 @@ next:   lda     ptr
         sta     ptr
         bcc     :+
         inc     ptr+1
-:       inc     $A7
-        lda     $A7
+:       inc     num
+        lda     num
         cmp     #$0D            ; self-modified: entries_per_block
         entries_per_block_mod := *-1
         bcc     entry
 
-        lda     data_buffer + next_block
+        lda     data_buffer + VolumeDirectoryBlockHeader::next_block
         sta     read_block_params_block_num
-        lda     data_buffer + next_block + 1
+        lda     data_buffer + VolumeDirectoryBlockHeader::next_block + 1
         sta     read_block_params_block_num+1
         ora     read_block_params_block_num
         beq     not_found       ; last block has next=0
         jsr     read_block
-        lda     #$00
-        sta     $A7
+        lda     #0
+        sta     num
         lda     #<(data_buffer + $04)
         sta     ptr
         lda     #>(data_buffer + $04)
@@ -545,8 +463,7 @@ not_found:
         sta     ptr
         pla
         sta     ptr+1
-
-        bne     skip            ; ???
+        bne     skip            ; always (since data not on ZP)
 
 next:   cmp     #(HI 'a')       ; lower-case?
         bcc     :+
@@ -555,7 +472,7 @@ next:   cmp     #(HI 'a')       ; lower-case?
 skip:   inc     ptr
         bne     :+
         inc     ptr+1
-:       ldy     #$00
+:       ldy     #0
         lda     (ptr),y
         bne     next
 
