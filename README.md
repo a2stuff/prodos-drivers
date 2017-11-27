@@ -15,7 +15,7 @@ The included disks include:
 
 ## Goal
 
-Like the `NS.CLOCK.SYSTEM` (author?) ideally we would have:
+Like the `NS.CLOCK.SYSTEM` (by "CAP") ideally we would have:
 
 * A ProDOS `.SYSTEM` file
 * Which detects the presence of a Cricket

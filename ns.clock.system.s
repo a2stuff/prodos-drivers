@@ -1,3 +1,10 @@
+;;; NS.CLOCK.SYSTEM
+;;; Original by "CAP" 04/21/91
+;;; http://www.apple2.org.za/gswv/a2zine/GS.WorldView/v1999/Oct/MISC/NSC.Disk.TXT
+
+;;; Modification history available at:
+;;; https://github.com/inexorabletash/cricket
+
         .setcpu "6502"
         .linecont +
 
