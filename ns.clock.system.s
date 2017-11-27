@@ -1,5 +1,8 @@
-        .setcpu "65C02"
+        .setcpu "6502"
         .linecont +
+
+        .include "apple2.inc"
+        .include "opcodes.inc"
 
         ;; ASCII
 BELL            := $07
@@ -9,10 +12,7 @@ CR              := $0D
 MAX_DW          := $FFFF
 
         ;; Softswitches
-KBD             := $C000        ; Last Key Pressed + 128
-KBDSTRB         := $C010        ; Keyboard Strobe
 CLR80VID        := $C00C        ; 40 Columns
-CLRALTCHAR      := $C00E        ; Primary Character Set
 ROMIN2          := $C082        ; Read ROM; no write
 RWRAM1          := $C08B        ; Read/write RAM bank 1
 
@@ -21,6 +21,7 @@ PRODOS          := $BF00
 DATETIME        := $BF06
 DEVNUM          := $BF30
 BITMAP          := $BF58
+BITMAP_SIZE     := 24           ; 24 bytes in bitmap
 DATELO          := $BF90
 TIMELO          := $BF92
 MACHID          := $BF98
@@ -49,7 +50,7 @@ SETNORM         := $FE84
 SETKBD          := $FE89
 SETVID          := $FE93
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 
 .macro PASCAL_STRING arg
         .byte   .strlen(arg)
@@ -77,20 +78,20 @@ SETVID          := $FE93
 
 .define HI(c)   ((c)|$80)
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 
         data_buffer = $1800
 
         .define SYSTEM_SUFFIX ".SYSTEM"
 
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 
         .org $1000
 
         ;;  Loaded at $2000 but relocates to $1000
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 
 sys_start:
         sec
@@ -98,7 +99,7 @@ sys_start:
 
         .byte   $04, $21, $91   ; 4/21/91
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 ;;; Relocate this code from $2000 (.SYSTEM start location) to $1000
 ;;; and start executing there. This is done so that the next .SYSTEM
 ;;; file can be loaded/run at $2000.
@@ -122,7 +123,7 @@ load:   lda     src,y           ; self-modified
         jmp     load
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 ;;; Identify the name of this SYS file, which should be present at
 ;;; $280 with or without a path prefix. This is used when searching
 ;;; for the next .SYSTEM file to execute.
@@ -156,7 +157,9 @@ cloop:  iny
 .endproc
         ;; Fall through...
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
+;;; Before installing, get the system to a known state and
+;;; ensure there is not a previous clock driver installed.
 
 .proc pre_install
         cld
@@ -170,33 +173,38 @@ cloop:  iny
         eor     #$A5
         sta     $03F4
 
+        ;; Quit 80-column firmware
         lda     #$95            ; Ctrl+U (quit 80 col firmware)
         jsr     COUT
 
-        ldx     #$FF            ; Reset stack
+        ;; Reset stack
+        ldx     #$FF
         txs
 
-        sta     CLR80VID        ; Reset I/O
+        ;; Reset I/O
+        sta     CLR80VID
         sta     CLRALTCHAR
         jsr     SETVID
         jsr     SETKBD
         jsr     SETNORM
         jsr     INIT
 
-        ldx     #$17            ; Update system page bitmap
-        lda     #1
+        ;; Update System Bit Map
+        ldx     #BITMAP_SIZE-1
+        lda     #%00000001      ; protect page $BF
 :       sta     BITMAP,x
-        lda     #0
+        lda     #%00000000      ; nothing else protected until...
         dex
         bne     :-
-        lda     #$CF
+        lda     #%11001111      ; ZP ($00), stack ($01), text page 1 ($04-$07)
         sta     BITMAP
 
         lda     MACHID
-        and     #$88            ; //e or //c ?
+        and     #$88            ; IIe or IIc (or IIgs) ?
         bne     :+
         lda     #$DF
         sta     lowercase_mask  ; lower case to upper case
+
 :       lda     MACHID
         and     #$01            ; existing clock card?
         beq     detect_nsc      ; nope, check for NSC
@@ -208,7 +216,7 @@ cloop:  iny
         jmp     launch_next_sys_file
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 ;;; Detect NSC. Scan slot ROMs and main ROMs. Try reading
 ;;; each location several times, and validate results before
 ;;; installing driver.
@@ -306,7 +314,7 @@ tries:  .byte   3
 slot:   .byte   0
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 ;;; Install NSC Driver. Copy into address at DATETIME vector,
 ;;; update the vector and update MACHID bits to signal a clock
 ;;; is present.
@@ -317,7 +325,7 @@ slot:   .byte   0
         lda     DATETIME+1
         sta     ptr
         clc
-        adc     #$73
+        adc     #(unlock - driver - 1)
         sta     ld3+1
         lda     DATETIME+2
         sta     ptr+1
@@ -337,7 +345,7 @@ loop:   lda     driver,y
         ora     #$01
         sta     MACHID
 
-        lda     #$4C            ; JMP opcode
+        lda     #OPC_JMP_abs
         sta     DATETIME
 
         ;; Invoke the driver to init the time
@@ -377,7 +385,7 @@ loop:   lda     driver,y
         jsr     CROUT
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 ;;; Find and invoke the next .SYSTEM file
 
 .proc launch_next_sys_file
@@ -523,7 +531,7 @@ not_found:
         jmp     quit
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 ;;; Output a high-ascii, null-terminated string.
 ;;; String immediately follows the JSR.
 
@@ -555,7 +563,7 @@ skip:   inc     ptr
         rts
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 ;;; COUT a 2-digit number in A
 
 .proc cout_number
@@ -581,12 +589,13 @@ units:  pla
         rts
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 
 lowercase_mask:
         .byte   $FF             ; Set to $DF on systems w/o lower-case
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
+;;; Invoke ProDOS QUIT routine.
 
 .proc quit
         PRODOS_CALL MLI_QUIT, quit_params
@@ -601,7 +610,8 @@ lowercase_mask:
 .endproc
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
+;;; Read a disk block.
 
 .proc read_block
         PRODOS_CALL MLI_READ_BLOCK, read_block_params
@@ -618,7 +628,7 @@ block_num: .word   2            ; block_num - block 2 is volume directory
         read_block_params_unit_num := read_block_params::unit_num
         read_block_params_block_num := read_block_params::block_num
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 ;;; Load/execute the system file in PATHNAME
 
 .proc invoke_system_file
@@ -637,8 +647,8 @@ block_num: .word   2            ; block_num - block 2 is volume directory
         jmp     SYS_ADDR        ; Invoke loaded SYSTEM file
 .endproc
 
-;;; --------------------------------------------------
-;;; Error Handler
+;;; ------------------------------------------------------------
+;;; Error handler - invoked if any ProDOS error occurs.
 
 .proc on_error
         pha
@@ -655,7 +665,7 @@ block_num: .word   2            ; block_num - block 2 is volume directory
         jmp     quit
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 
 .proc open_params
         .byte   3               ; param_count
@@ -679,7 +689,7 @@ ref_num:.byte   1               ; ref_num
 ref_num:.byte   0               ; ref_num
 .endproc
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 
 found_self_flag:
         .byte   0
@@ -689,8 +699,8 @@ suffix: .byte   SYSTEM_SUFFIX
 self_name:
         PASCAL_STRING "NS.CLOCK.SYSTEM"
 
-;;; --------------------------------------------------
-;;; NSC driver - copied into ProDOS
+;;; ------------------------------------------------------------
+;;; NSC driver - modified as needed and copied into ProDOS
 
 driver:
         php
@@ -700,59 +710,74 @@ ld4:    lda     $CFFF           ; self-modified
 st1:    sta     $C300           ; self-modified
 ld1:    lda     $C304           ; self-modified
         ldx     #8
-L140D:
+
+        ;; Unlock the NSC by bit-banging.
+uloop:
 ld3:    lda     unlock-1,x      ; self-modified
         sec
-        ror     a
-L1412:  pha
+        ror     a               ; a bit at a time
+:       pha
         lda     #0
         rol     a
         tay
 ld2:    lda     $C300,y         ; self-modified
         pla
         lsr     a
-        bne     L1412
+        bne     :-
         dex
-        bne     L140D
+        bne     uloop
+
+        ;; Read 8 bytes * 8 bits of clock data into $200...$207
         ldx     #8
-L1423:  ldy     #8
+bloop:  ldy     #8
 st2:
 :       lda     $C304           ; self-modified
         ror     a
         ror     $01FF,x
         dey
         bne     :-
-        lda     $01FF,x
-        lsr     a
-        lsr     a
+        lda     $01FF,x         ; got 8 bits
+
+        lsr     a               ; BCD to binary
+        lsr     a               ; shift out tens
         lsr     a
         lsr     a
         tay
-        beq     L1447
+        beq     donebcd
         lda     $01FF,x
-        and     #$0F
+        and     #$0F            ; mask out units
         clc
-:       adc     #$0A
+:       adc     #10             ; and add tens as needed
         dey
         bne     :-
         sta     $01FF,x
-L1447:  dex
-        bne     L1423
-        lda     $0204
+donebcd:
+        dex
+        bne     bloop
+
+        ;; Now $200...$207 is y/m/d/w/H/M/S/f
+
+        ;; Update ProDOS date/time.
+        lda     $0204           ; hour
         sta     TIMELO+1
-        lda     $0205
+
+        lda     $0205           ; minute
         sta     TIMELO
-        lda     $0201
+
+        lda     $0201           ; month
         asl     a
         asl     a
         asl     a
         asl     a
         asl     a
-        ora     $0202
+
+        ora     $0202           ; day
         sta     DATELO
-        lda     $0200
+
+        lda     $0200           ; year
         rol     a
         sta     DATELO+1
+
         pla
         bmi     done
 st4:    sta     $CFFF           ; self-modified
@@ -767,11 +792,11 @@ unlock:
 
         sizeof_driver := * - driver
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 
 sys_end:
 
-;;; --------------------------------------------------
+;;; ------------------------------------------------------------
 ;;; Junk from here on...
 
         .byte $b3, $68, $72, $f0, $2a, $2a, $2a, $2a
