@@ -162,7 +162,21 @@ cloop:  iny
         dey
         bpl     :-
 
-        ;; TODO: Confirm SSC in slot 2
+        ;; Check Slot 2 for SSC. ID bytes per:
+        ;; Apple II Technical Note #8: Pascal 1.1 Firmware Protocol ID Bytes
+        lda     $C205
+        cmp     #$38
+        bne     not_found
+        lda     $C207
+        cmp     #$17
+        bne     not_found
+        lda     $C20B
+        cmp     #$01
+        bne     not_found
+        lda     $C20C
+        cmp     #$31
+        bne     not_found
+
         ;; TODO: Write NUL and check for 'C' ... version ... $8D (CR)
         ;; https://github.com/inexorabletash/cricket/issues/3
 
@@ -574,7 +588,7 @@ self_name:
         beq     :-              ; nope, keep waiting
 
         ;; Send command
-        lda     #('@' | $80)    ; '@' command
+        lda     #HI('@')        ; '@' command
         sta     TDREG
 
         read_len := 7           ; read 7 bytes (w/m/d/y/H/M/S)
