@@ -3,7 +3,7 @@ CC65 = ~/dev/cc65/bin
 CAFLAGS = --target apple2enh --list-bytes 0
 CCFLAGS = --config apple2-asm.cfg
 
-TARGETS = prodos.mod.BIN ns.clock.system.SYS cricket.system.SYS
+TARGETS = prodos.mod.BIN ns.clock.system.SYS cricket.system.SYS test.BIN
 
 .PHONY: clean all
 all: $(TARGETS)

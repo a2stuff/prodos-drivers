@@ -47,11 +47,11 @@ loop:   lda     driver,y
         sta     COMMAND
         lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
         sta     CONTROL
+
+        ;; Send command
 :       lda     STATUS
         and     #(1 << 4)       ; transmit register empty? (bit 4)
         beq     :-              ; nope, keep waiting
-
-        ;; Send command
         lda     #('@' | $80)    ; '@' command
         sta     TDREG
 

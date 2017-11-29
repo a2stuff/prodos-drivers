@@ -168,7 +168,7 @@ cloop:  iny
         cmp     #$38
         bne     not_found
         lda     $C207
-        cmp     #$17
+        cmp     #$18
         bne     not_found
         lda     $C20B
         cmp     #$01
@@ -583,11 +583,11 @@ self_name:
         sta     COMMAND
         lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
         sta     CONTROL
+
+        ;; Send command
 :       lda     STATUS
         and     #(1 << 4)       ; transmit register empty? (bit 4)
         beq     :-              ; nope, keep waiting
-
-        ;; Send command
         lda     #HI('@')        ; '@' command
         sta     TDREG
 
