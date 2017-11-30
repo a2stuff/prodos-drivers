@@ -112,10 +112,12 @@ saved_control:  .byte   0
         ;; Read byte into A, or carry set if timed out
 .proc readbyte
         tries := $300
-        lda #<tries
-        sta counter
-        lda #>tries
-        sta counter+1
+        counter := $A5
+
+        lda     #<tries
+        sta     counter
+        lda     #>tries
+        sta     counter+1
 
 check:  lda     STATUS          ; did we get it?
         and     #(1 << 3)       ; receive register full? (bit 3)
@@ -129,10 +131,9 @@ check:  lda     STATUS          ; did we get it?
         sec                     ; failed
         rts
 
-ready:  clc
+ready:  lda     RDREG           ; actually read the register
+        clc
         rts
-
-counter:        .word   0
 .endproc
 
 

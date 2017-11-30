@@ -151,52 +151,120 @@ cloop:  iny
 .endproc
 
 ;;; ------------------------------------------------------------
-;;; Detect Cricket.
-;;; TODO: Implement this!
+;;; Detect Cricket. Detect SSC and if present probe device.
 
 .proc detect_cricket
-        ;; Preserve date/time
-        ldy     #3              ; copy 4 bytes
-:       lda     DATELO,y
-        sta     saved,y
-        dey
-        bpl     :-
 
         ;; Check Slot 2 for SSC. ID bytes per:
         ;; Apple II Technical Note #8: Pascal 1.1 Firmware Protocol ID Bytes
         lda     $C205
         cmp     #$38
-        bne     not_found
+        bne     ssc_not_found
         lda     $C207
         cmp     #$18
-        bne     not_found
+        bne     ssc_not_found
         lda     $C20B
         cmp     #$01
-        bne     not_found
+        bne     ssc_not_found
         lda     $C20C
         cmp     #$31
-        bne     not_found
+        bne     ssc_not_found
 
-        ;; TODO: Write NUL and check for 'C' ... version ... $8D (CR)
-        ;; https://github.com/inexorabletash/cricket/issues/3
+        beq     init_ssc
+ssc_not_found:
+        jmp     not_found
 
+        ;; Init SSC and try the "Read Cricket ID code" sequence.
+init_ssc:
+        lda     COMMAND         ; save status of SSC registers
+        sta     saved_command
+        lda     CONTROL
+        sta     saved_control
+
+        ;; Configure SSC
+        lda     #%00001011
+        sta     COMMAND
+        lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
+        sta     CONTROL
+
+        ;; Read Cricket ID code: 00 ($00)
+        lda     #0
+        jsr     sendbyte
+
+        ;; "The Cricket will return a "C" (195, $C3) followed by a
+        ;; version number (in ASCII) and a carriage return (141, $8D)."
+        jsr     readbyte
+        bcs     cricket_not_found ; timeout
+        cmp     #HI('C')          ; = 'C' ?
+        bne     cricket_not_found
+
+:       jsr     readbyte
+        bcs     cricket_not_found ; timeout
+        cmp     #HI(CR)           ; = CR ?
+        beq     cricket_found     ; TODO: Require digits between 'C' and CR
+        cmp     #HI('0')          ; < '0' ?
+        bcc     cricket_not_found
+        cmp     #HI('9' + 1)      ; > '9' ?
+        bcs     cricket_not_found
+        bcc     :-
+
+cricket_found:
         jmp     install_driver
 
-        ;; If not found, restore date/time
-not_found:
-        ldy     #3
-:       lda     saved,y
-        sta     DATELO,y
-        dey
-        bpl     :-
+cricket_not_found:
+        lda     saved_control
+        sta     CONTROL
+        lda     saved_command
+        sta     COMMAND
+        ;; fall through...
 
+not_found:
         ;; Show failure message
         jsr     MON_HOME
         jsr     zstrout
         HIASCIIZ CR, CR, CR, PRODUCT, " - Not Found."
         jmp     launch_next_sys_file
 
-saved:  .byte   0, 0, 0, 0
+saved_command:  .byte   0
+saved_control:  .byte   0
+.endproc
+
+        ;; Write byte in A
+.proc sendbyte
+        pha
+:       lda     STATUS
+        and     #(1 << 4)       ; transmit register empty? (bit 4)
+        beq     :-              ; nope, keep waiting
+        pla
+        sta     TDREG
+        rts
+.endproc
+
+        ;; Read byte into A, or carry set if timed out
+.proc readbyte
+        tries := $300
+        counter := $A5
+
+        lda     #<tries
+        sta     counter
+        lda     #>tries
+        sta     counter+1
+
+check:  lda     STATUS          ; did we get it?
+        and     #(1 << 3)       ; receive register full? (bit 3)
+        bne     ready           ; yes, we read the value
+
+        dec     counter
+        bne     check
+        dec     counter+1
+        bne     check
+
+        sec                     ; failed
+        rts
+
+ready:  lda     RDREG           ; actually read the register
+        clc
+        rts
 .endproc
 
 ;;; ------------------------------------------------------------
