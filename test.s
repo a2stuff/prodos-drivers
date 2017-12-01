@@ -56,16 +56,23 @@ init_ssc:
         ;; "The Cricket will return a "C" (195, $C3) followed
         ;; by a version number (in ASCII) and a carriage return (141,
         ;; $8D)."
+        jsr     zstrout
+        HIASCIIZ "Reading SSC: "
+
         jsr     readbyte
         bcs     cricket_not_found ; timeout
         cmp     #HI('C')          ; = 'C' ?
         bne     cricket_not_found
 
+        jsr     readbyte
+        bcs     cricket_not_found ; timeout
+        bcc     digit
+
 :       jsr     readbyte
         bcs     cricket_not_found ; timeout
         cmp     #HI(CR)           ; = CR ?
         beq     cricket_found
-        cmp     #HI('0')          ; < '0' ?
+digit:  cmp     #HI('0')          ; < '0' ?
         bcc     cricket_not_found
         cmp     #HI('9' + 1)      ; > '9' ?
         bcs     cricket_not_found
@@ -75,12 +82,12 @@ init_ssc:
 
 cricket_found:
         jsr     zstrout
-        HIASCIIZ "Cricket tentatively found.", CR
+        HIASCIIZ CR, "Cricket tentatively found.", CR
         jmp     exit
 
 cricket_not_found:
         jsr     zstrout
-        HIASCIIZ "Cricket not identified.", CR
+        HIASCIIZ CR, "Cricket not identified.", CR
         jmp     exit
 
 exit:
@@ -128,94 +135,21 @@ check:  lda     STATUS          ; did we get it?
         dec     counter+1
         bne     check
 
+        jsr zstrout
+        HIASCIIZ "... timeout!"
+
         sec                     ; failed
         rts
 
 ready:  lda     RDREG           ; actually read the register
+        pha
+        jsr     COUT
+        pla
         clc
         rts
 .endproc
 
 
-
-;;; ------------------------------------------------------------
-;;; Cricket Clock Driver - copied into ProDOS
-
-.proc driver
-        scratch := $3A          ; ZP scratch location
-
-        ;; Initialize
-        php
-        sei
-        lda     COMMAND         ; save status of command register
-        pha
-
-        read_len := 7           ; read 7 bytes (w/m/d/y/H/M/S)
-
-        ;; Read response, pushing to stack
-        ldy     #(read_len-1)
-
-rloop:  ldx     #0              ; x = retry loop counter low byte
-        lda     #3              ; scratch = retry loop counter high byte
-        sta     scratch         ; ($300 iterations total)
-
-check:  lda     STATUS          ; did we get it?
-        and     #(1 << 3)       ; receive register full? (bit 3)
-        bne     ready           ; yes, we read the value
-
-        inx                     ; not yet, so keep trying
-        bne     check           ; until counter runs out
-        dec     scratch
-        bne     check
-
-        ;; Read failed - restore stack and exit
-reset:  cpy     #(read_len-1)   ; anything left to restore?
-        beq     done            ; nope, exit
-        pla                     ; yep, clear it off the stack
-        iny
-        bne     reset
-
-        ;; Read succeeded - stuff it on the stack and continue
-ready:  lda     RDREG
-        pha
-        dey
-        bpl     rloop
-
-        ;; Convert pushed response to ProDOS time field
-        pla                     ; day of week (unused)
-
-        pla                     ; minute
-        sta     TIMELO          ; -- stored as-is (TIMELO 5-0)
-
-        pla                     ; hour
-        sta     TIMELO+1        ; -- stored as-is (TIMELO 12-8)
-
-        pla                     ; year
-        sta     DATELO+1        ; -- will be shifted up by 1 (DATELO 15-9)
-
-        pla                     ; day
-        and     #%00011111      ; -- masked, stored as is (DATELO 4-0)
-        sta     DATELO
-
-        pla                     ; month
-        asl     a               ; -- shifted up (DATELO 8-5)
-        asl     a
-        asl     a
-        asl     a
-        asl     a
-        ora     DATELO          ; -- merge low 5 bits
-        sta     DATELO
-        rol     DATELO+1
-
-        pla                     ; seconds (unused)
-
-        ;; Restore prior state
-done:   pla                     ; restore saved command state
-        sta     COMMAND
-        plp
-        rts
-.endproc
-        sizeof_driver := .sizeof(driver)
 
 ;;; ------------------------------------------------------------
 ;;; Output a high-ascii, null-terminated string.

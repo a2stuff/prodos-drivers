@@ -198,11 +198,15 @@ init_ssc:
         cmp     #HI('C')          ; = 'C' ?
         bne     cricket_not_found
 
+        jsr     readbyte
+        bcs     cricket_not_found ; timeout
+        bcc     digit
+
 :       jsr     readbyte
         bcs     cricket_not_found ; timeout
         cmp     #HI(CR)           ; = CR ?
-        beq     cricket_found     ; TODO: Require digits between 'C' and CR
-        cmp     #HI('0')          ; < '0' ?
+        beq     cricket_found
+digit:  cmp     #HI('0')          ; < '0' ?
         bcc     cricket_not_found
         cmp     #HI('9' + 1)      ; > '9' ?
         bcs     cricket_not_found
