@@ -43,7 +43,7 @@ init_ssc:
         sta     saved_control
 
         ;; Configure SSC
-        lda     #%00001011
+        lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
         sta     COMMAND
         lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
         sta     CONTROL
