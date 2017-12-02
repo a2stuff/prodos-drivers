@@ -33,7 +33,7 @@ sys_start:
         sec
         bcs     relocate
 
-        .byte   $11, $26, $17   ; 11/26/17 - version date stamp
+        .byte   $12, $1, $17   ; 12/1/17 - version date stamp
 
 ;;; ------------------------------------------------------------
 ;;; Relocate this code from $2000 (.SYSTEM start location) to $1000
