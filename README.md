@@ -23,3 +23,7 @@ Like the `NS.CLOCK.SYSTEM` (by "CAP") ideally we would have:
 * [x] Chains to the next `.SYSTEM` file (e.g. `BASIC.SYSTEM`)
 
 Successfully tested on real hardware. (Laser 128EX, including at 3x speed.)
+
+## Build
+
+Requires [cc65](https://github.com/cc65/cc65). The included `Makefile` is very specific to my machine - sorry about that.
