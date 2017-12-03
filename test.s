@@ -9,6 +9,8 @@
 
         .org $2000
 
+        read_delay_hi = $3 * 3 ; ($300 iterations is normal * 3.6MHz)
+
 .proc detect_cricket
         ;; Check Slot 2 for SSC. ID bytes per:
         ;; Apple II Technical Note #8: Pascal 1.1 Firmware Protocol ID Bytes
@@ -118,7 +120,7 @@ saved_control:  .byte   0
 
         ;; Read byte into A, or carry set if timed out
 .proc readbyte
-        tries := $300
+        tries := $100 * read_delay_hi
         counter := $A5
 
         lda     #<tries

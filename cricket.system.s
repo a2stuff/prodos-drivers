@@ -18,6 +18,8 @@
 
         data_buffer = $1800
 
+        read_delay_hi = $3 * 3 ; ($300 iterations is normal * 3.6MHz)
+
         .define SYSTEM_SUFFIX ".SYSTEM"
         .define PRODUCT "Cricket Clock"
 
@@ -246,7 +248,7 @@ saved_control:  .byte   0
 
         ;; Read byte into A, or carry set if timed out
 .proc readbyte
-        tries := $300
+        tries := $100 * read_delay_hi
         counter := $A5
 
         lda     #<tries
@@ -651,7 +653,7 @@ self_name:
         pha
 
         ;; Configure SSC
-        lda     #%00001011
+        lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
         sta     COMMAND
         lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
         sta     CONTROL
@@ -669,8 +671,8 @@ self_name:
         ldy     #(read_len-1)
 
 rloop:  ldx     #0              ; x = retry loop counter low byte
-        lda     #3              ; scratch = retry loop counter high byte
-        sta     scratch         ; ($300 iterations total)
+        lda     #read_delay_hi  ; scratch = retry loop counter high byte
+        sta     scratch
 
 check:  lda     STATUS          ; did we get it?
         and     #(1 << 3)       ; receive register full? (bit 3)
@@ -729,7 +731,7 @@ done:   pla                     ; restore saved command state
         rts
 .endproc
         sizeof_driver := .sizeof(driver)
-
+        .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
 ;;; ------------------------------------------------------------
 
 sys_end:

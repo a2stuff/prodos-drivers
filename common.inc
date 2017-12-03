@@ -35,6 +35,7 @@ PATHNAME        := $0280        ; Pathname of loaded system file
 ;;; MLI commands
 MLI_QUIT        := $65
 MLI_READ_BLOCK  := $80
+MLI_GET_TIME    := $82
 MLI_OPEN        := $C8
 MLI_READ        := $CA
 MLI_CLOSE       := $CC

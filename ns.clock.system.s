@@ -711,6 +711,7 @@ unlock:
         .byte   $00
 
         sizeof_driver := * - driver
+        .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
 
 ;;; ------------------------------------------------------------
 
