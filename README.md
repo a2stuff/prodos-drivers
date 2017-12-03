@@ -42,8 +42,8 @@ Other files:
 ## Resources
 
 Cricket disks on Asimov: 
-<a href="ftp://ftp.apple.asimov.net/pub/apple_II/images/hardware/sound/cricket_disk1.po">disk 1</a>
-<a href="ftp://ftp.apple.asimov.net/pub/apple_II/images/hardware/sound/cricket_disk2.po">disk 2</a>
+* ftp://ftp.apple.asimov.net/pub/apple_II/images/hardware/sound/cricket_disk1.po 
+* ftp://ftp.apple.asimov.net/pub/apple_II/images/hardware/sound/cricket_disk2.po
 
-<a href="ftp://ftp.apple.asimov.net/pub/apple_II/documentation/hardware/sound/Street%20Electronics%20The%20Cricket.pdf">
-Cricket Manual</a>
+Cricket Manual on Asimov:
+* ftp://ftp.apple.asimov.net/pub/apple_II/documentation/hardware/sound/Street%20Electronics%20The%20Cricket.pdf
