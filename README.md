@@ -27,3 +27,23 @@ Successfully tested on real hardware. (Laser 128EX, including at 3x speed.)
 ## Build
 
 Requires [cc65](https://github.com/cc65/cc65). The included `Makefile` is very specific to my machine - sorry about that.
+
+[CRICKET.SYSTEM](cricket.system.s) is the result of the build.
+
+## Notes
+
+I ended up disassembling both [NS.CLOCK.SYSTEM](ns.clock.system.s) (to understand the SYSTEM chaining - what a pain!) and The Cricket's [PRODOS.MOD](prodos.mod.s) and melding them together, adding in the detection routine following the protocol in the manual.
+
+Other files:
+* [GET.TIME](get.time.s) just prints the current ProDOS date/time, to verify the time is set and updating.
+* [TEST](test.s) attempts to identify an SSC in Slot 2 and the Cricket via the ID sequence, to test routines.
+
+
+## Resources
+
+Cricket disks on Asimov: 
+<a href="ftp://ftp.apple.asimov.net/pub/apple_II/images/hardware/sound/cricket_disk1.po">disk 1</a>
+<a href="ftp://ftp.apple.asimov.net/pub/apple_II/images/hardware/sound/cricket_disk2.po">disk 2</a>
+
+<a href="ftp://ftp.apple.asimov.net/pub/apple_II/documentation/hardware/sound/Street%20Electronics%20The%20Cricket.pdf">
+Cricket Manual</a>
