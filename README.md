@@ -2,7 +2,7 @@
 
 I acquired a Cricket sound/clock peripheral on eBay. Therefore it is now critical that we have a conforming ProDOS clock driver for it.
 
-> STATUS: Work In Progress
+> STATUS: Works on my machine!
 
 ## Background
 
@@ -13,7 +13,7 @@ The included disks include:
 * A modified version of ProDOS
 * A utility to patch ProDOS on disk
 
-## Goal
+## Goals
 
 Like the `NS.CLOCK.SYSTEM` (by "CAP") ideally we would have:
 
@@ -22,4 +22,4 @@ Like the `NS.CLOCK.SYSTEM` (by "CAP") ideally we would have:
 * [x] Installs a driver in memory following the ProDOS clock driver protocol
 * [x] Chains to the next `.SYSTEM` file (e.g. `BASIC.SYSTEM`)
 
-Just need to try it on real hardware now...
+Successfully tested on real hardware. (Laser 128EX, including at 3x speed.)
