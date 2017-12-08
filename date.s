@@ -1,3 +1,8 @@
+;;; Query ProDOS and print the current date/time
+;;; (No dependency on Cricket clock)
+
+;;; Output is: MM/DD/YY  HH:MM
+
         .setcpu "6502"
         .org    $2000
 

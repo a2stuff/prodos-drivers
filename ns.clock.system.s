@@ -303,14 +303,14 @@ loop:   lda     driver,y
         and     #%00001111
         jsr     cout_number
 
-        lda     #(HI '/')       ; /
+        lda     #HI('/')        ; /
         jsr     COUT
 
         pla                     ; day
         and     #%00011111
         jsr     cout_number
 
-        lda     #(HI '/')       ; /
+        lda     #HI('/')        ; /
         jsr     COUT
 
         pla                     ; year
@@ -465,7 +465,7 @@ not_found:
         sta     ptr+1
         bne     skip            ; always (since data not on ZP)
 
-next:   cmp     #(HI 'a')       ; lower-case?
+next:   cmp     #HI('a')        ; lower-case?
         bcc     :+
         and     lowercase_mask  ; make upper-case if needed
 :       jsr     COUT
@@ -487,7 +487,7 @@ skip:   inc     ptr
 ;;; COUT a 2-digit number in A
 
 .proc cout_number
-        ldx     #(HI '0')
+        ldx     #HI('0')
         cmp     #10             ; >= 10?
         bcc     tens
 
@@ -498,13 +498,13 @@ skip:   inc     ptr
         bcs     :-
 
 tens:   pha
-        cpx     #(HI '0')
+        cpx     #HI('0')
         beq     units
         txa
         jsr     COUT
 
 units:  pla
-        ora     #(HI '0')
+        ora     #HI('0')
         jsr     COUT
         rts
 .endproc
