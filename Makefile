@@ -4,8 +4,8 @@ CAFLAGS = --target apple2enh --list-bytes 0
 CCFLAGS = --config apple2-asm.cfg
 
 TARGETS = prodos.mod.BIN ns.clock.system.SYS cricket.system.SYS \
-	test.BIN get.time.BIN \
-	set.time.BIN set.date.BIN
+	test.BIN \
+	date.BIN set.time.BIN set.date.BIN
 
 # For timestamps
 MM = $(shell date "+%m")
