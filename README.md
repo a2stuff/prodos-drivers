@@ -1,4 +1,4 @@
-# The Cricket! - ProDOS Clock Driver
+# _The Cricket!_ &mdash; ProDOS Clock Driver
 
 I acquired a Cricket sound/clock peripheral on eBay. Therefore it is now critical that we have a conforming ProDOS clock driver for it.
 
@@ -6,7 +6,7 @@ I acquired a Cricket sound/clock peripheral on eBay. Therefore it is now critica
 
 ## Background
 
-"The Cricket!" by Street Electronics Corporation, released in 1984, is a hardware peripheral for the Apple //c computer. It plugs into the serial port and offers a multi-voice sound synthesizer, a speech synthesizer, and a real-time clock.
+_"The Cricket!"_ by Street Electronics Corporation, released in 1984, is a hardware peripheral for the Apple //c computer. It plugs into the serial port and offers a multi-voice sound synthesizer, a speech synthesizer, and a real-time clock.
 
 The disks supplied with the device include:
 * `/CRICKET/PRODOS.MOD` which can be BRUN to patch ProDOS in memory with a clock driver.
@@ -52,3 +52,7 @@ Cricket disks on Asimov:
 
 Cricket Manual on Asimov:
 * ftp://ftp.apple.asimov.net/pub/apple_II/documentation/hardware/sound/Street%20Electronics%20The%20Cricket.pdf
+
+## FYI...
+
+In the Cricket manual there is a short sample BASIC program to set the clock without the use of any assembly routines, using `PR#2` to talk to the serial card followed by `PRINT` statements. This does not appear to work from ProDOS with the clock driver in place - the time ends up temporarily scrambled until the clock sorts itself out again. Assembly language routines do work, however. I believe ProDOS attempts to read the clock during the execution of the basic program, which interferes the device.
