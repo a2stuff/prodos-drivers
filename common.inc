@@ -2,6 +2,7 @@
 ;;; ASCII
 
 BELL            := $07
+BS              := $08
 CR              := $0D
 
 ;;; ------------------------------------------------------------
@@ -68,12 +69,16 @@ MLI_CLOSE       := $CC
 
 INIT            := $FB2F
 MON_HOME        := $FC58
+GETLN           := $FD6A        ; with prompt character
+GETLN2          := $FD6F        ; no prompt character
 CROUT           := $FD8E
 PRBYTE          := $FDDA
 COUT            := $FDED
 SETNORM         := $FE84
 SETKBD          := $FE89
 SETVID          := $FE93
+
+INPUT_BUFFER    := $200
 
 ;;; ------------------------------------------------------------
 ;;; I/O Registers (for Slot 2)
