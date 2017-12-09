@@ -1,21 +1,19 @@
+;;; Disassembly of BYE.SYSTEM (Bird's Better Bye)
 
         .setcpu "65C02"
+        .include "apple2.inc"
         .include "prodos.inc"
 
 L0060           := $0060
 
-KBD             := $C000
 RAMRDOFF        := $C002
 RAMRDON         := $C003
 RAMWRTOFF       := $C004
 RAMWRTON        := $C005
 ALTZPOFF        := $C008
 ALTZPON         := $C009
-KBDSTRB         := $C010
-ROMIN           := $C081
 ROMINNW         := $C082
 ROMINWB1        := $C089
-LCBANK1         := $C08B
 LC300           := $C300
 
 MON_SETTXT      := $FB39
@@ -27,6 +25,33 @@ COUT            := $FDED
 SETINV          := $FE80
 SETNORM         := $FE84
 
+ZP_HPOS         := $24
+
+
+ASCII_TAB       := $9
+ASCII_DOWN      := $A
+ASCII_UP        := $B
+ASCII_RETURN    := $D
+ASCII_ESCAPE    := $1B
+
+;;; ------------------------------------------------------------
+
+.define HI(char)        (char|$80)
+
+.macro  HIASCII arg
+        .repeat .strlen(arg), i
+        .byte   .strat(arg, i) | $80
+        .endrep
+.endmacro
+
+.macro  HIASCIIZ arg
+        HIASCII arg
+        .byte   0
+.endmacro
+
+;;; ------------------------------------------------------------
+
+        ;; Loads at $2000 but executed at $1000.
 
         .org    $2000
 
@@ -40,6 +65,12 @@ L2000:  jmp     install_and_quit
         ;; filenames at $1400 - each is length byte + 15 byte buffer
 
         read_buffer := $2000    ; Also, start location for launched SYS files
+
+
+        current_entry := $67
+        num_entries := $68
+        rows_per_screen := 21
+        current_line := $73
 
         cld
         lda     ROMINNW
@@ -96,7 +127,7 @@ L1059:  stx     prefix          ; truncate prefix to length x
         jmp     keyboard_loop
 
 L107F:  inc     $6B             ; ???
-        stz     $68
+        stz     num_entries
         lda     open_params_ref_num
         sta     read_params_ref_num
         sta     $61
@@ -158,7 +189,7 @@ L10F8:  ror     $201E
         beq     L1108
         cmp     #$FF
         bne     L10B5
-L1108:  ldx     $68
+L1108:  ldx     num_entries
         cpx     #$80
         bcs     L1129
         sta     $74,x
@@ -171,31 +202,37 @@ L1115:  lda     read_buffer,y
         iny
         and     #$0F
         sta     ($6C),y
-        inc     $68
+        inc     num_entries
         bne     L10B5
 L1126:  jmp     L1032
 
 L1129:  MLI_CALL CLOSE, close_params
         bcs     L1126
+
+        ;; TEXT : HOME : VTAB 23
         jsr     MON_SETTXT
         jsr     MON_HOME
-        lda     #$17
+        lda     #23             ; line 23
         jsr     MON_TABV
-        ldy     #$00
-        lda     #$14
-        jsr     L124A
+
+        ;; Print help text
+        ldy     #0
+        lda     #20             ; HTAB 20
+        jsr     cout_string_hpos
+
         jsr     L12AD
-        ldx     #$00
-L1148:  lda     prefix+1,x
+        ldx     #0
+:       lda     prefix+1,x
         beq     L1153
         jsr     L12AF
         inx
-        bne     L1148
-L1153:  stz     $67
-        stz     $73
-        lda     $68
+        bne     :-
+
+L1153:  stz     current_entry
+        stz     current_line
+        lda     num_entries
         beq     keyboard_loop
-        cmp     #$15
+        cmp     #rows_per_screen
         bcc     L1161
         lda     #$14
 L1161:  sta     $6A
@@ -205,57 +242,68 @@ L1161:  sta     $6A
         lda     #$16
         sta     $21
         sta     $23
-L116F:  jsr     L1277
-        inc     $67
+L116F:  jsr     draw_current_line
+        inc     current_entry
         dec     $6A
         bne     L116F
-        stz     $67
-        beq     L11AA
+        stz     current_entry
+        beq     draw_current_line_inv
 
-on_up:  jsr     L1277
-        ldx     $67
-        beq     L11AA
-        dec     $67
+.proc on_up
+        jsr     draw_current_line ; show current line
+        ldx     current_entry
+        beq     draw_current_line_inv
+        dec     current_entry
         lda     $25
         cmp     #$02
-        bne     L11AA
-        dec     $73
-        lda     #$16
-        bne     L11A7
+        bne     draw_current_line_inv
+        dec     current_line
+        lda     #$16            ; code output ???
+        bne     draw_current_line_with_char
+.endproc
 
-on_down:
-        jsr     L1277
-        ldx     $67
+.proc on_down
+        jsr     draw_current_line
+        ldx     current_entry
         inx
-        cpx     $68
-        bcs     L11AA
-        stx     $67
+        cpx     num_entries
+        bcs     draw_current_line_inv
+        stx     current_entry
         lda     $25
-        cmp     #$15
-        bne     L11AA
-        inc     $73
-        lda     #$17
+        cmp     #rows_per_screen
+        bne     draw_current_line_inv
+        inc     current_line
+        lda     #$17            ; code output ???
+        ;; fall through
+.endproc
 
-L11A7:  jsr     COUT
-L11AA:  jsr     SETINV
-        jsr     L1277
+draw_current_line_with_char:
+        jsr     COUT
+
+draw_current_line_inv:
+        jsr     SETINV
+        jsr     draw_current_line
+        ;; fall through
+
+;;; ------------------------------------------------------------
+
 
 keyboard_loop:
         lda     KBD
         bpl     keyboard_loop
         sta     KBDSTRB
         jsr     SETNORM
-        ldx     $68
+        ldx     num_entries
         beq     L11CB
-        cmp     #$8D            ; Return
+        cmp     #HI(ASCII_RETURN)
         beq     on_return
-        cmp     #$8A            ; Down Arrow
+        cmp     #HI(ASCII_DOWN)
         beq     on_down
-        cmp     #$8B            ; Up Arrow
+        cmp     #HI(ASCII_UP)
         beq     on_up
-L11CB:  cmp     #$89            ; Tab
+L11CB:  cmp     #HI(ASCII_TAB)
         beq     next_drive
-        cmp     #$9B            ; Esc
+        cmp     #HI(ASCII_ESCAPE)
         bne     keyboard_loop
 
         jsr     L11DA
@@ -280,7 +328,7 @@ L11F1:  jmp     L1059
 on_return:
         MLI_CALL SET_PREFIX, set_prefix_params
         bcs     next_drive
-        ldx     $67
+        ldx     current_entry
         jsr     L1258
 
         ldx     prefix
@@ -292,9 +340,11 @@ on_return:
         bcc     :-
         stx     prefix
 
-        ldy     $67
+        ldy     current_entry
         lda     $74,y
         bpl     L11F0           ; is directory???
+
+;;; ------------------------------------------------------------
 
 .proc launch_sys_file
         jsr     MON_SETTXT
@@ -317,7 +367,10 @@ on_return:
         jmp     read_buffer     ; Invoke the loaded code
 .endproc
 
-L124A:  sta     $24
+;;; ------------------------------------------------------------
+
+cout_string_hpos:
+        sta     ZP_HPOS
 
 cout_string:
         lda     help_string,y
@@ -347,12 +400,13 @@ L1258:  stz     $6D
         sta     $69
         rts
 
-L1277:  lda     #$02
+draw_current_line:
+        lda     #$02
         sta     $057B
-        ldx     $67
+        ldx     current_entry
         txa
         sec
-        sbc     $73
+        sbc     current_line
         inc     a
         inc     a
         jsr     MON_TABV
@@ -378,21 +432,18 @@ L12AD:  lda     #$99
 L12AF:  ora     #$80
 L12B1:  jmp     COUT
 
+;;; ------------------------------------------------------------
+
 .proc do_read
         MLI_CALL READ, read_params
         rts
 .endproc
 
-        .macro  HIASCII arg
-        .repeat .strlen(arg), i
-        .byte   .strat(arg, i) | $80
-        .endrep
-.endmacro
+;;; ------------------------------------------------------------
 
         string_start := *
 .proc help_string
-        HIASCII "RETURN: Select | TAB: Chg Vol | ESC: Back"
-        .byte   0               ; null terminated
+        HIASCIIZ "RETURN: Select | TAB: Chg Vol | ESC: Back"
 .endproc
 
         ;; Mousetext sequence: Enable, folder left, folder right, disable
@@ -400,6 +451,8 @@ L12B1:  jmp     COUT
         .byte   $0F,$1B,$D8,$D9,$18,$0E
         .byte   0               ; null terminated
 .endproc
+
+;;; ------------------------------------------------------------
 
 .proc open_params
 params: .byte   3
@@ -436,6 +489,8 @@ trans:  .word   0
         read_params_ref_num := read_params::ref_num
         read_params_request := read_params::request
 
+;;; ------------------------------------------------------------
+
         .res    192, 0
         .byte   $00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00,$00
@@ -450,16 +505,22 @@ trans:  .word   0
         .assert .sizeof(bbb) = $3FF, error, "Expected size is $3FF"
         .org    $2402
 
-install_and_quit:
+;;; ------------------------------------------------------------
+
+.proc install_and_quit
         jsr     install
-        MLI_CALL QUIT, quit_params
-.proc quit_params
+        MLI_CALL QUIT, params
+
+.proc params
 params: .byte   4
 type:   .byte   0
 res1:   .word   0
 res2:   .byte   0
 res3:   .addr   0
 .endproc
+.endproc
+
+;;; ------------------------------------------------------------
 
 .proc install
         src := install_src
