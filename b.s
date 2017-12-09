@@ -26,6 +26,9 @@ SETINV          := $FE80
 SETNORM         := $FE84
 
 ZP_HPOS         := $24
+ZP_TMASK        := $32
+
+COL80HPOS       := $057B
 
 
 ASCII_TAB       := $9
@@ -69,8 +72,10 @@ L2000:  jmp     install_and_quit
 
         current_entry := $67
         num_entries := $68
-        rows_per_screen := 21
-        current_line := $73
+        page_start := $73
+
+        top_row    := 2
+        bottom_row := 21
 
         cld
         lda     ROMINNW
@@ -224,15 +229,15 @@ L1129:  MLI_CALL CLOSE, close_params
         ldx     #0
 :       lda     prefix+1,x
         beq     L1153
-        jsr     L12AF
+        jsr     ascii_cout
         inx
         bne     :-
 
 L1153:  stz     current_entry
-        stz     current_line
+        stz     page_start
         lda     num_entries
         beq     keyboard_loop
-        cmp     #rows_per_screen
+        cmp     #bottom_row
         bcc     L1161
         lda     #$14
 L1161:  sta     $6A
@@ -249,18 +254,22 @@ L116F:  jsr     draw_current_line
         stz     current_entry
         beq     draw_current_line_inv
 
+;;; ------------------------------------------------------------
+
 .proc on_up
         jsr     draw_current_line ; show current line
         ldx     current_entry
-        beq     draw_current_line_inv
-        dec     current_entry
+        beq     draw_current_line_inv ; first one? just redraw
+        dec     current_entry         ; go to previous
         lda     $25
-        cmp     #$02
+        cmp     #top_row
         bne     draw_current_line_inv
-        dec     current_line
+        dec     page_start
         lda     #$16            ; code output ???
         bne     draw_current_line_with_char
 .endproc
+
+;;; ------------------------------------------------------------
 
 .proc on_down
         jsr     draw_current_line
@@ -270,12 +279,14 @@ L116F:  jsr     draw_current_line
         bcs     draw_current_line_inv
         stx     current_entry
         lda     $25
-        cmp     #rows_per_screen
+        cmp     #bottom_row
         bne     draw_current_line_inv
-        inc     current_line
+        inc     page_start
         lda     #$17            ; code output ???
         ;; fall through
 .endproc
+
+;;; ------------------------------------------------------------
 
 draw_current_line_with_char:
         jsr     COUT
@@ -287,28 +298,38 @@ draw_current_line_inv:
 
 ;;; ------------------------------------------------------------
 
-
-keyboard_loop:
+.proc keyboard_loop
         lda     KBD
         bpl     keyboard_loop
         sta     KBDSTRB
         jsr     SETNORM
         ldx     num_entries
-        beq     L11CB
+        beq     :+              ; no up/down/return if empty
+
         cmp     #HI(ASCII_RETURN)
         beq     on_return
         cmp     #HI(ASCII_DOWN)
         beq     on_down
         cmp     #HI(ASCII_UP)
         beq     on_up
-L11CB:  cmp     #HI(ASCII_TAB)
+
+:       cmp     #HI(ASCII_TAB)
         beq     next_drive
         cmp     #HI(ASCII_ESCAPE)
         bne     keyboard_loop
+        ;; fall through
+.endproc
 
+;;; ------------------------------------------------------------
+
+.proc on_escape
         jsr     L11DA
         dec     $6B
         bra     L11F1
+.endproc
+
+;;; ------------------------------------------------------------
+
 L11DA:  ldx     prefix
 L11DD:  dex
         lda     prefix,x
@@ -325,7 +346,9 @@ next_drive:
 L11F0:  inx
 L11F1:  jmp     L1059
 
-on_return:
+;;; ------------------------------------------------------------
+
+.proc on_return
         MLI_CALL SET_PREFIX, set_prefix_params
         bcs     next_drive
         ldx     current_entry
@@ -343,6 +366,10 @@ on_return:
         ldy     current_entry
         lda     $74,y
         bpl     L11F0           ; is directory???
+        ;; nope, system file, so...
+
+        ;; fall through
+.endproc
 
 ;;; ------------------------------------------------------------
 
@@ -372,14 +399,18 @@ on_return:
 cout_string_hpos:
         sta     ZP_HPOS
 
-cout_string:
+.proc cout_string
         lda     help_string,y
-        beq     L1257
+        beq     done
         jsr     COUT
         iny
         bne     cout_string
-L1257:  rts
+done:   rts
+.endproc
 
+;;; ------------------------------------------------------------
+
+        ;; Compute offset to name in directory listing ???
 L1258:  stz     $6D
         txa
         asl     a
@@ -400,37 +431,44 @@ L1258:  stz     $6D
         sta     $69
         rts
 
+;;; ------------------------------------------------------------
+
 draw_current_line:
-        lda     #$02
-        sta     $057B
-        ldx     current_entry
+        lda     #2              ; hpos = 2
+        sta     COL80HPOS
+
+        ldx     current_entry   ; vpos = entry - page_start + 2
         txa
         sec
-        sbc     current_line
+        sbc     page_start
         inc     a
         inc     a
         jsr     MON_TABV
+
         lda     $74,x
         bmi     L1299
-        stz     $057B
-        lda     $32
+        stz     COL80HPOS
+        lda     ZP_TMASK
         pha
         ldy     #(folder_string - string_start) ; Draw folder glyphs
         jsr     cout_string
         pla
-        sta     $32
+        sta     ZP_TMASK
 L1299:  jsr     L12A9
         jsr     L1258
 L129F:  iny
         lda     ($6C),y
-        jsr     L12AF
+        jsr     ascii_cout
         cpy     $69
         bcc     L129F
-L12A9:  lda     #$A0
-        bne     L12B1
-L12AD:  lda     #$99
-L12AF:  ora     #$80
-L12B1:  jmp     COUT
+L12A9:  lda     #HI(' ')
+        bne     cout            ; implicit RTS
+L12AD:  lda     #$99            ; Ctrl+Y ??
+
+        ;; Sets high bit before calling COUT
+ascii_cout:
+        ora     #$80
+cout:   jmp     COUT
 
 ;;; ------------------------------------------------------------
 
