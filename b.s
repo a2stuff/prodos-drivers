@@ -564,23 +564,17 @@ trans:  .word   0
 
 ;;; ------------------------------------------------------------
 
-        .res    192, 0
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $00,$00,$48,$AD
+        .res    $13FF-*-2, 0
+        .byte   $48,$AD         ; 72, 173 ???
 
 .endproc
         .assert .sizeof(bbb) = $3FF, error, "Expected size is $3FF"
-        .org    $2402
 
 ;;; ------------------------------------------------------------
 ;;; Installer
 ;;; ------------------------------------------------------------
+
+        .org    $2402
 
 .proc install_and_quit
         jsr     install
@@ -600,7 +594,7 @@ res3:   .addr   0
 .proc install
         src := install_src
         end := install_src + .sizeof(bbb)
-        dst := $D100            ; Install location in ProDOS
+        dst := $D100            ; Install location in ProDOS (bank 2)
 
         src_ptr := $19
         dst_ptr := $1B
