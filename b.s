@@ -96,16 +96,15 @@ L2000:  jmp     install_and_quit
         mark_ref_num    := $61
         mark_position   := $62  ; 3-bytes
 
-        next_device     := $65  ; next device number to try
+        next_device_num := $65  ; next device number to try
 
         current_entry   := $67  ; index of current entry
         num_entries     := $68  ; length of |filenames|
-
-
         curr_len        := $69  ; length of current entry name
         curr_ptr        := $6C  ; address of current entry name (in |filenames|)
-
         page_start      := $73  ; index of first entry shown on screen
+
+        prefix_depth    := $6B  ; 0 = root
 
         max_entries     := 128  ; max # of entries; more are ignored
         types_table     := $74  ; high bit clear = dir, set = sys
@@ -140,47 +139,53 @@ L2000:  jmp     install_and_quit
         lda     #2
         sta     $60
         ldx     DEVCNT          ; max device num
-        stx     next_device
+        stx     next_device_num
         lda     DEVNUM
-        bne     L1042
+        bne     check_device
 
-check_device:
-        ldx     next_device
+next_device:
+        ldx     next_device_num
         lda     DEVLST,x
         cpx     #1
         bcs     :+
         ldx     DEVCNT
         inx
 :       dex
-        stx     next_device
+        stx     next_device_num
 
-L1042:  sta     on_line_params_unit
+check_device:
+        sta     on_line_params_unit
         MLI_CALL ON_LINE, on_line_params
-        bcs     check_device
+        bcs     next_device
 
-        stz     $6B
+        stz     prefix_depth
         lda     prefix+1
         and     #$0F
-        beq     check_device
+        beq     next_device
         adc     #$02
         tax
 
-L1059:  stx     prefix          ; truncate prefix to length x
+        ;; Resize prefix to length x and open the directory for reading
+resize_prefix_and_open:
+        stx     prefix
         lda     #'/'
         sta     prefix+1
         sta     prefix,x
         stz     prefix+1,x
 
         MLI_CALL OPEN, open_params
-        bcc     L107F
-        lda     $6B
-        beq     check_device
-        jsr     BELL1
-        jsr     L11DA
+        bcc     :+
+
+        ;; Open failed
+        lda     prefix_depth    ; root?
+        beq     next_device
+        jsr     BELL1           ; no, but failed; beep
+        jsr     pop_prefix      ; and go up a level
         stx     prefix
         jmp     keyboard_loop
 
-L107F:  inc     $6B             ; ???
+        ;; Open succeeded
+:       inc     prefix_depth
         stz     num_entries
         lda     open_params_ref_num
         sta     read_params_ref_num
@@ -215,7 +220,7 @@ L10B9:  lda     mark_position+1
         bcc     L10CE
         tay
         sty     $72
-        inc     mark+position+1
+        inc     mark_position+1
 L10CC:  inc     mark_position+1
 L10CE:  dey
         clc
@@ -258,7 +263,7 @@ L1115:  lda     read_buffer,y
         sta     (curr_ptr),y
         inc     num_entries
         bne     L10B5
-L1126:  jmp     check_device
+L1126:  jmp     next_device
 
 finish_read:
         MLI_CALL CLOSE, close_params
@@ -378,28 +383,34 @@ draw_current_line_inv:
 ;;; ------------------------------------------------------------
 
 .proc on_escape
-        jsr     L11DA
-        dec     $6B
-        bra     L11F1
+        jsr     pop_prefix      ; leaves length in X
+        dec     prefix_depth
+        bra     resize_prefix_and_open_jmp
 .endproc
 
 ;;; ------------------------------------------------------------
 
-L11DA:  ldx     prefix
-L11DD:  dex
+        ;; Remove level from prefix; returns new length in X
+.proc pop_prefix
+        ldx     prefix
+loop:   dex
         lda     prefix,x
         cmp     #'/'
-        bne     L11DD
+        bne     loop
         cpx     #$01
-        bne     L11EC
+        bne     done
         ldx     prefix
-L11EC:  rts
+done:   rts
+.endproc
 
 next_drive:
-        jmp     check_device
+        jmp     next_device
 
-L11F0:  inx
-L11F1:  jmp     L1059
+dec_resize_prefix_and_open:
+        inx
+
+resize_prefix_and_open_jmp:
+        jmp     resize_prefix_and_open
 
 ;;; ------------------------------------------------------------
 
@@ -420,7 +431,7 @@ L11F1:  jmp     L1059
 
         ldy     current_entry
         lda     types_table,y
-        bpl     L11F0           ; is directory???
+        bpl     dec_resize_prefix_and_open ; is directory???
         ;; nope, system file, so...
 
         ;; fall through
