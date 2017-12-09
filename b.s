@@ -4,8 +4,6 @@
         .include "apple2.inc"
         .include "prodos.inc"
 
-L0060           := $0060
-
 RESETVEC        := $3F2
 
 RAMRDOFF        := $C002
@@ -31,7 +29,10 @@ COL80HPOS       := $057B
 
 ;;; ProDOS
 BITMAP          := $BF58
-BITMAP_SIZE     := $18
+BITMAP_SIZE     := $18          ; Bits for pages $00 to $BF
+DEVNUM          := $BF30        ; Most recent accessed device
+DEVCNT          := $BF31        ; Number of on-line devices minus 1
+DEVLST          := $BF32        ; Up to 14 units
 
 ;;; ASCII
 ASCII_TAB       := $9
@@ -58,6 +59,16 @@ ASCII_ESCAPE    := $1B
         .byte   0
 .endmacro
 
+
+;;; ------------------------------------------------------------
+
+;;; ProDOS Technical Reference Manual, 5.1.5.2:
+;;;
+;;; ProDOS MLI call $65, the QUIT call, moves addresses $D100 through
+;;; $D3FF from the second 4K bank of RAM of the language card to
+;;; $1000, and executes a JMP to $1000. What initially resides in that
+;;; area is Apple's dispatcher code.
+
 ;;; ------------------------------------------------------------
 ;;; Entry point
 ;;; ------------------------------------------------------------
@@ -81,13 +92,23 @@ L2000:  jmp     install_and_quit
         filenames       := $1400 ; each is length + 15 bytes
         read_buffer     := $2000 ; Also, start location for launched SYS files
 
+        mark_params     := $60
+        mark_ref_num    := $61
+        mark_position   := $62  ; 3-bytes
+
+        next_device     := $65  ; next device number to try
+
         current_entry   := $67  ; index of current entry
         num_entries     := $68  ; length of |filenames|
+
 
         curr_len        := $69  ; length of current entry name
         curr_ptr        := $6C  ; address of current entry name (in |filenames|)
 
         page_start      := $73  ; index of first entry shown on screen
+
+        max_entries     := 128  ; max # of entries; more are ignored
+        types_table     := $74  ; high bit clear = dir, set = sys
 
         top_row         := 2    ; first row used on screen
         bottom_row      := 21   ; last row used on screen
@@ -108,34 +129,39 @@ L2000:  jmp     install_and_quit
 
         ;; Update system bitmap
         ldx     #BITMAP_SIZE-1  ; zero it all out
-:       stz     BITMAP,x        ; zero it all out...
+:       stz     BITMAP,x
         dex
         bpl     :-
-        inc     BITMAP+BITMAP_SIZE-1 ; protect global page itself
+        inc     BITMAP+BITMAP_SIZE-1 ; protect ProDOS global page
+        lda     #%11001111           ; protect zp, stack, text page 1
+        sta     BITMAP
 
-        lda     #$CF
-        sta     $BF58
-        lda     #$02
-        sta     L0060
-        ldx     $BF31
-        stx     $65
-        lda     $BF30
+        ;; Find device
+        lda     #2
+        sta     $60
+        ldx     DEVCNT          ; max device num
+        stx     next_device
+        lda     DEVNUM
         bne     L1042
-L1032:  ldx     $65
-        lda     $BF32,x
-        cpx     #$01
-        bcs     L103F
-        ldx     $BF31
+
+check_device:
+        ldx     next_device
+        lda     DEVLST,x
+        cpx     #1
+        bcs     :+
+        ldx     DEVCNT
         inx
-L103F:  dex
-        stx     $65
+:       dex
+        stx     next_device
+
 L1042:  sta     on_line_params_unit
         MLI_CALL ON_LINE, on_line_params
-        bcs     L1032
+        bcs     check_device
+
         stz     $6B
         lda     prefix+1
         and     #$0F
-        beq     L1032
+        beq     check_device
         adc     #$02
         tax
 
@@ -148,7 +174,7 @@ L1059:  stx     prefix          ; truncate prefix to length x
         MLI_CALL OPEN, open_params
         bcc     L107F
         lda     $6B
-        beq     L1032
+        beq     check_device
         jsr     BELL1
         jsr     L11DA
         stx     prefix
@@ -158,7 +184,7 @@ L107F:  inc     $6B             ; ???
         stz     num_entries
         lda     open_params_ref_num
         sta     read_params_ref_num
-        sta     $61
+        sta     mark_ref_num
         lda     #$2B
         sta     read_params_request
         stz     read_params_request+1
@@ -172,25 +198,25 @@ L109A:  lda     $2023,x
         sta     read_params_request
         lda     #$01
         sta     $72
-        stz     $63
-        stz     $64
+        stz     mark_position+1
+        stz     mark_position+2
         lda     $70
         ora     $71
         bne     L10B5
 L10B3:  bra     finish_read
 L10B5:  bit     $71
         bmi     L10B3
-L10B9:  lda     $63
+L10B9:  lda     mark_position+1
         and     #$FE
-        sta     $63
+        sta     mark_position+1
         ldy     $72
         lda     #$00
         cpy     $6F
         bcc     L10CE
         tay
         sty     $72
-        inc     $63
-L10CC:  inc     $63
+        inc     mark+position+1
+L10CC:  inc     mark_position+1
 L10CE:  dey
         clc
         bmi     L10D8
@@ -198,8 +224,8 @@ L10CE:  dey
         bcc     L10CE
         bcs     L10CC
 L10D8:  adc     #$04
-        sta     $62
-        MLI_CALL SET_MARK, L0060
+        sta     mark_position
+        MLI_CALL SET_MARK, mark_params
         bcs     L10B3
         jsr     do_read
         bcs     L10B3
@@ -218,9 +244,9 @@ L10F8:  ror     $201E
         cmp     #$FF
         bne     L10B5
 L1108:  ldx     num_entries
-        cpx     #$80
+        cpx     #max_entries
         bcs     finish_read
-        sta     $74,x
+        sta     types_table,x
         jsr     update_curr_ptr
         ldy     #$0F
 L1115:  lda     read_buffer,y
@@ -232,7 +258,7 @@ L1115:  lda     read_buffer,y
         sta     (curr_ptr),y
         inc     num_entries
         bne     L10B5
-L1126:  jmp     L1032
+L1126:  jmp     check_device
 
 finish_read:
         MLI_CALL CLOSE, close_params
@@ -370,7 +396,7 @@ L11DD:  dex
 L11EC:  rts
 
 next_drive:
-        jmp     L1032
+        jmp     check_device
 
 L11F0:  inx
 L11F1:  jmp     L1059
@@ -393,7 +419,7 @@ L11F1:  jmp     L1059
         stx     prefix
 
         ldy     current_entry
-        lda     $74,y
+        lda     types_table,y
         bpl     L11F0           ; is directory???
         ;; nope, system file, so...
 
@@ -478,8 +504,10 @@ draw_current_line:
         inc     a
         jsr     MON_TABV
 
-        lda     $74,x
-        bmi     L1299
+        lda     types_table,x
+        bmi     name            ; is sys file?
+
+        ;; Draw folder glyph
         stz     COL80HPOS
         lda     INVFLG
         pha
@@ -487,7 +515,9 @@ draw_current_line:
         jsr     cout_string
         pla
         sta     INVFLG
-L1299:  jsr     space
+
+        ;;  Draw the name
+name:   jsr     space
         jsr     update_curr_ptr
 L129F:  iny
         lda     (curr_ptr),y
