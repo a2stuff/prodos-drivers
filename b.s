@@ -14,7 +14,7 @@ ALTZPOFF        := $C008
 ALTZPON         := $C009
 ROMINNW         := $C082
 ROMINWB1        := $C089
-LC300           := $C300
+SLOT3           := $C300
 
 MON_SETTXT      := $FB39
 MON_TABV        := $FB5B
@@ -39,6 +39,7 @@ ASCII_TAB       := $9
 ASCII_DOWN      := $A           ; down arrow
 ASCII_UP        := $B           ; up arrow
 ASCII_CR        := $D
+ASCII_RIGHT     := $15          ; right arrow
 ASCII_SYN       := $16          ; scroll up
 ASCII_ETB       := $17          ; scroll down
 ASCII_EM        := $19          ; move cursor to upper left
@@ -77,7 +78,7 @@ ASCII_ESCAPE    := $1B
 
         .org    $2000
 
-L2000:  jmp     install_and_quit
+        jmp     install_and_quit
         install_src := *
 
 ;;; ------------------------------------------------------------
@@ -124,7 +125,7 @@ L2000:  jmp     install_and_quit
 
         jsr     SETPWRC
         lda     #$A0
-        jsr     LC300           ; Activate 80-Column Firmware
+        jsr     SLOT3           ; Activate 80-Column Firmware
 
         ;; Update system bitmap
         ldx     #BITMAP_SIZE-1  ; zero it all out
@@ -162,11 +163,11 @@ check_device:
         lda     prefix+1
         and     #$0F
         beq     next_device
-        adc     #$02
+        adc     #2
         tax
 
         ;; Resize prefix to length x and open the directory for reading
-resize_prefix_and_open:
+.proc resize_prefix_and_open
         stx     prefix
         lda     #'/'
         sta     prefix+1
@@ -184,18 +185,22 @@ resize_prefix_and_open:
         stx     prefix
         jmp     keyboard_loop
 
+
+        directory_header_size   := $2B
+
         ;; Open succeeded
 :       inc     prefix_depth
         stz     num_entries
         lda     open_params_ref_num
         sta     read_params_ref_num
         sta     mark_ref_num
-        lda     #$2B
+        lda     #directory_header_size
         sta     read_params_request
         stz     read_params_request+1
         jsr     do_read
         bcs     L10B3
-        ldx     #$03
+
+        ldx     #3
 L109A:  lda     $2023,x
         sta     $6E,x
         dex
@@ -208,7 +213,9 @@ L109A:  lda     $2023,x
         lda     $70
         ora     $71
         bne     L10B5
+
 L10B3:  bra     finish_read
+
 L10B5:  bit     $71
         bmi     L10B3
 L10B9:  lda     mark_position+1
@@ -253,23 +260,29 @@ L1108:  ldx     num_entries
         bcs     finish_read
         sta     types_table,x
         jsr     update_curr_ptr
-        ldy     #$0F
-L1115:  lda     read_buffer,y
+
+        ldy     #$0F            ; name length
+:       lda     read_buffer,y
         sta     (curr_ptr),y
         dey
-        bpl     L1115
-        iny
+        bpl     :-
+
+        iny                     ; Y = 0
         and     #$0F
-        sta     (curr_ptr),y
+        sta     (curr_ptr),y    ; store length
         inc     num_entries
         bne     L10B5
-L1126:  jmp     next_device
+next:   jmp     next_device
 
 finish_read:
         MLI_CALL CLOSE, close_params
-        bcs     L1126
+        bcs     next
+        ;; fall through
+.endproc
 
-draw_screen:
+;;; ------------------------------------------------------------
+
+.proc draw_screen
         jsr     MON_SETTXT      ; TEXT
         jsr     MON_HOME        ; HOME
         lda     #23             ; VTAB 23
@@ -284,31 +297,35 @@ draw_screen:
         jsr     home
         ldx     #0
 :       lda     prefix+1,x
-        beq     L1153
+        beq     :+
         jsr     ascii_cout
         inx
         bne     :-
 
-L1153:  stz     current_entry
+:       stz     current_entry
         stz     page_start
         lda     num_entries
-        beq     keyboard_loop
-        cmp     #bottom_row
-        bcc     L1161
-        lda     #$14
-L1161:  sta     $6A
-        lda     #$02
-        sta     $22
-        sta     $20
-        lda     #$16
-        sta     $21
-        sta     $23
-L116F:  jsr     draw_current_line
+        beq     keyboard_loop   ; no entries (empty directory)
+
+        row_count := $6A
+
+        cmp     #bottom_row     ; more entries than fit?
+        bcc     :+
+        lda     #(bottom_row - top_row + 1)
+:       sta     row_count
+        lda     #2
+        sta     WNDTOP
+        sta     WNDLFT
+        lda     #22
+        sta     WNDWDTH
+        sta     WNDBTM
+loop:   jsr     draw_current_line
         inc     current_entry
-        dec     $6A
-        bne     L116F
+        dec     row_count
+        bne     loop
         stz     current_entry
         beq     draw_current_line_inv
+.endproc
 
 ;;; ------------------------------------------------------------
 
@@ -397,11 +414,13 @@ loop:   dex
         lda     prefix,x
         cmp     #'/'
         bne     loop
-        cpx     #$01
+        cpx     #1
         bne     done
         ldx     prefix
 done:   rts
 .endproc
+
+;;; ------------------------------------------------------------
 
 next_drive:
         jmp     next_device
@@ -442,7 +461,7 @@ resize_prefix_and_open_jmp:
 .proc launch_sys_file
         jsr     MON_SETTXT
         jsr     MON_HOME
-        lda     #$95            ; Right arrow
+        lda     #HI(ASCII_RIGHT) ; Right arrow
         jsr     COUT
 
         MLI_CALL OPEN, open_params
@@ -503,7 +522,7 @@ done:   rts
 
 ;;; ------------------------------------------------------------
 
-draw_current_line:
+.proc draw_current_line
         lda     #2              ; hpos = 2
         sta     COL80HPOS
 
@@ -530,14 +549,16 @@ draw_current_line:
         ;;  Draw the name
 name:   jsr     space
         jsr     update_curr_ptr
-L129F:  iny
+loop:   iny
         lda     (curr_ptr),y
         jsr     ascii_cout
         cpy     curr_len
-        bcc     L129F
+        bcc     loop
 
 space:  lda     #HI(' ')
         bne     cout            ; implicit RTS
+        ;; fall through
+.endproc
 
 home:   lda     #HI(ASCII_EM)   ; move cursor to top left
 
