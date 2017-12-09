@@ -6,6 +6,8 @@
 
 L0060           := $0060
 
+RESETVEC        := $3F2
+
 RAMRDOFF        := $C002
 RAMRDON         := $C003
 RAMWRTOFF       := $C004
@@ -25,16 +27,20 @@ COUT            := $FDED
 SETINV          := $FE80
 SETNORM         := $FE84
 
-ZP_HPOS         := $24
-ZP_TMASK        := $32
-
 COL80HPOS       := $057B
 
+;;; ProDOS
+BITMAP          := $BF58
+BITMAP_SIZE     := $18
 
+;;; ASCII
 ASCII_TAB       := $9
-ASCII_DOWN      := $A
-ASCII_UP        := $B
-ASCII_RETURN    := $D
+ASCII_DOWN      := $A           ; down arrow
+ASCII_UP        := $B           ; up arrow
+ASCII_CR        := $D
+ASCII_SYN       := $16          ; scroll up
+ASCII_ETB       := $17          ; scroll down
+ASCII_EM        := $19          ; move cursor to upper left
 ASCII_ESCAPE    := $1B
 
 ;;; ------------------------------------------------------------
@@ -53,6 +59,8 @@ ASCII_ESCAPE    := $1B
 .endmacro
 
 ;;; ------------------------------------------------------------
+;;; Entry point
+;;; ------------------------------------------------------------
 
         ;; Loads at $2000 but executed at $1000.
 
@@ -61,35 +69,50 @@ ASCII_ESCAPE    := $1B
 L2000:  jmp     install_and_quit
         install_src := *
 
+;;; ------------------------------------------------------------
+;;; Selector
+;;; ------------------------------------------------------------
+
         .org    $1000
 .proc bbb
 
-        prefix := $280          ; length-prefixed
-        ;; filenames at $1400 - each is length byte + 15 byte buffer
+        prefix  := $280         ; length-prefixed
 
-        read_buffer := $2000    ; Also, start location for launched SYS files
+        filenames       := $1400 ; each is length + 15 bytes
+        read_buffer     := $2000 ; Also, start location for launched SYS files
 
+        current_entry   := $67  ; index of current entry
+        num_entries     := $68  ; length of |filenames|
 
-        current_entry := $67
-        num_entries := $68
-        page_start := $73
+        curr_len        := $69  ; length of current entry name
+        curr_ptr        := $6C  ; address of current entry name (in |filenames|)
 
-        top_row    := 2
-        bottom_row := 21
+        page_start      := $73  ; index of first entry shown on screen
 
-        cld
-        lda     ROMINNW
-        stz     $03F2
-        lda     #$10
-        sta     $03F3
+        top_row         := 2    ; first row used on screen
+        bottom_row      := 21   ; last row used on screen
+
+;;; ------------------------------------------------------------
+
+        cld                     ; ProDOS protocol for QUIT routine
+        lda     ROMINNW         ; Page in ROM for reads, writes ignored
+
+        ;; Point reset vector at this routine
+        stz     RESETVEC
+        lda     #>bbb
+        sta     RESETVEC+1
+
         jsr     SETPWRC
         lda     #$A0
-        jsr     LC300
-        ldx     #$17
-L1016:  stz     $BF58,x
+        jsr     LC300           ; Activate 80-Column Firmware
+
+        ;; Update system bitmap
+        ldx     #BITMAP_SIZE-1  ; zero it all out
+:       stz     BITMAP,x        ; zero it all out...
         dex
-        bpl     L1016
-        inc     $BF6F
+        bpl     :-
+        inc     BITMAP+BITMAP_SIZE-1 ; protect global page itself
+
         lda     #$CF
         sta     $BF58
         lda     #$02
@@ -154,7 +177,7 @@ L109A:  lda     $2023,x
         lda     $70
         ora     $71
         bne     L10B5
-L10B3:  bra     L1129
+L10B3:  bra     finish_read
 L10B5:  bit     $71
         bmi     L10B3
 L10B9:  lda     $63
@@ -196,28 +219,29 @@ L10F8:  ror     $201E
         bne     L10B5
 L1108:  ldx     num_entries
         cpx     #$80
-        bcs     L1129
+        bcs     finish_read
         sta     $74,x
-        jsr     L1258
+        jsr     update_curr_ptr
         ldy     #$0F
 L1115:  lda     read_buffer,y
-        sta     ($6C),y
+        sta     (curr_ptr),y
         dey
         bpl     L1115
         iny
         and     #$0F
-        sta     ($6C),y
+        sta     (curr_ptr),y
         inc     num_entries
         bne     L10B5
 L1126:  jmp     L1032
 
-L1129:  MLI_CALL CLOSE, close_params
+finish_read:
+        MLI_CALL CLOSE, close_params
         bcs     L1126
 
-        ;; TEXT : HOME : VTAB 23
-        jsr     MON_SETTXT
-        jsr     MON_HOME
-        lda     #23             ; line 23
+draw_screen:
+        jsr     MON_SETTXT      ; TEXT
+        jsr     MON_HOME        ; HOME
+        lda     #23             ; VTAB 23
         jsr     MON_TABV
 
         ;; Print help text
@@ -225,7 +249,8 @@ L1129:  MLI_CALL CLOSE, close_params
         lda     #20             ; HTAB 20
         jsr     cout_string_hpos
 
-        jsr     L12AD
+        ;; Draw prefix
+        jsr     home
         ldx     #0
 :       lda     prefix+1,x
         beq     L1153
@@ -257,32 +282,36 @@ L116F:  jsr     draw_current_line
 ;;; ------------------------------------------------------------
 
 .proc on_up
-        jsr     draw_current_line ; show current line
+        jsr     draw_current_line ; clear inverse selection
+
         ldx     current_entry
         beq     draw_current_line_inv ; first one? just redraw
         dec     current_entry         ; go to previous
-        lda     $25
-        cmp     #top_row
-        bne     draw_current_line_inv
-        dec     page_start
-        lda     #$16            ; code output ???
+
+        lda     CV
+        cmp     #top_row        ; at the top?
+        bne     draw_current_line_inv ; if not, just draw
+        dec     page_start      ; yes, adjust page and
+        lda     #ASCII_SYN      ; scroll screen up
         bne     draw_current_line_with_char
 .endproc
 
 ;;; ------------------------------------------------------------
 
 .proc on_down
-        jsr     draw_current_line
+        jsr     draw_current_line ; clear inverse selection
+
         ldx     current_entry
         inx
-        cpx     num_entries
-        bcs     draw_current_line_inv
-        stx     current_entry
-        lda     $25
-        cmp     #bottom_row
-        bne     draw_current_line_inv
-        inc     page_start
-        lda     #$17            ; code output ???
+        cpx     num_entries           ; past the limit?
+        bcs     draw_current_line_inv ; yes, just redraw
+        stx     current_entry         ; go to next
+
+        lda     CV
+        cmp     #bottom_row     ; at the bottom?
+        bne     draw_current_line_inv ; if not, just draw
+        inc     page_start      ; yes, adjust page and
+        lda     #ASCII_ETB      ; scroll screen down
         ;; fall through
 .endproc
 
@@ -306,7 +335,7 @@ draw_current_line_inv:
         ldx     num_entries
         beq     :+              ; no up/down/return if empty
 
-        cmp     #HI(ASCII_RETURN)
+        cmp     #HI(ASCII_CR)
         beq     on_return
         cmp     #HI(ASCII_DOWN)
         beq     on_down
@@ -352,14 +381,14 @@ L11F1:  jmp     L1059
         MLI_CALL SET_PREFIX, set_prefix_params
         bcs     next_drive
         ldx     current_entry
-        jsr     L1258
+        jsr     update_curr_ptr
 
         ldx     prefix
 :       iny
-        lda     ($6C),y
+        lda     (curr_ptr),y
         inx
         sta     prefix,x
-        cpy     $69
+        cpy     curr_len
         bcc     :-
         stx     prefix
 
@@ -397,7 +426,7 @@ L11F1:  jmp     L1059
 ;;; ------------------------------------------------------------
 
 cout_string_hpos:
-        sta     ZP_HPOS
+        sta     CH
 
 .proc cout_string
         lda     help_string,y
@@ -410,26 +439,30 @@ done:   rts
 
 ;;; ------------------------------------------------------------
 
-        ;; Compute offset to name in directory listing ???
-L1258:  stz     $6D
+;; Compute address/length of curr_ptr/curr_len
+;; Call with entry index in X.
+
+.proc update_curr_ptr
+        stz     curr_ptr+1
         txa
         asl     a
-        rol     $6D
+        rol     curr_ptr+1
         asl     a
-        rol     $6D
+        rol     curr_ptr+1
         asl     a
-        rol     $6D
+        rol     curr_ptr+1
         asl     a
-        rol     $6D
-        sta     $6C
-        lda     #$14
+        rol     curr_ptr+1
+        sta     curr_ptr
+        lda     #>filenames
         clc
-        adc     $6D
-        sta     $6D
-        ldy     #$00
-        lda     ($6C),y
-        sta     $69
+        adc     curr_ptr+1
+        sta     curr_ptr+1
+        ldy     #0
+        lda     (curr_ptr),y
+        sta     curr_len
         rts
+.endproc
 
 ;;; ------------------------------------------------------------
 
@@ -448,22 +481,24 @@ draw_current_line:
         lda     $74,x
         bmi     L1299
         stz     COL80HPOS
-        lda     ZP_TMASK
+        lda     INVFLG
         pha
         ldy     #(folder_string - string_start) ; Draw folder glyphs
         jsr     cout_string
         pla
-        sta     ZP_TMASK
-L1299:  jsr     L12A9
-        jsr     L1258
+        sta     INVFLG
+L1299:  jsr     space
+        jsr     update_curr_ptr
 L129F:  iny
-        lda     ($6C),y
+        lda     (curr_ptr),y
         jsr     ascii_cout
-        cpy     $69
+        cpy     curr_len
         bcc     L129F
-L12A9:  lda     #HI(' ')
+
+space:  lda     #HI(' ')
         bne     cout            ; implicit RTS
-L12AD:  lda     #$99            ; Ctrl+Y ??
+
+home:   lda     #HI(ASCII_EM)   ; move cursor to top left
 
         ;; Sets high bit before calling COUT
 ascii_cout:
@@ -543,6 +578,8 @@ trans:  .word   0
         .assert .sizeof(bbb) = $3FF, error, "Expected size is $3FF"
         .org    $2402
 
+;;; ------------------------------------------------------------
+;;; Installer
 ;;; ------------------------------------------------------------
 
 .proc install_and_quit
