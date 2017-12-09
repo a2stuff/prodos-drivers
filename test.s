@@ -1,3 +1,7 @@
+;;; Test program for The Cricket!
+;;; * Probes Slot 2 for Super Serial Card (or compatible)
+;;; * Initializes SSC
+;;; * Sends Cricket ID sequence
 
         .setcpu "6502"
         .linecont +

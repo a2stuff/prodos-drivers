@@ -1,3 +1,6 @@
+;;; SET.TIME utility for The Cricket!
+;;; Prompts for time and sends Cricket "Set Time" sequence.
+
         .setcpu "6502"
         .linecont +
 

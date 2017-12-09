@@ -1,3 +1,6 @@
+;;; SET.DATE utility for The Cricket!
+;;; Prompts for date and sends Cricket "Set Date" sequence.
+
         .setcpu "6502"
         .linecont +
 
