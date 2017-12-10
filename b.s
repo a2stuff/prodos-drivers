@@ -4,65 +4,44 @@
         .include "apple2.inc"
         .include "prodos.inc"
 
+;;; Miscellaneous
+
 RESETVEC        := $3F2
 
-RAMRDOFF        := $C002
-RAMRDON         := $C003
-RAMWRTOFF       := $C004
-RAMWRTON        := $C005
-ALTZPOFF        := $C008
-ALTZPON         := $C009
-ROMINNW         := $C082
-ROMINWB1        := $C089
+COL80HPOS       := $57B
+
+;;; I/O Soft Switches / Firmware
+
+RAMRDOFF        := $C002        ; If 80STORE Off: Read Main Mem $0200-$BFFF
+RAMRDON         := $C003        ; If 80STORE Off: Read Aux Mem $0200-$BFFF
+RAMWRTOFF       := $C004        ; If 80STORE Off: Write Main Mem $0200-$BFFF
+RAMWRTON        := $C005        ; If 80STORE Off: Write Aux Mem $0200-$BFFF
+ALTZPOFF        := $C008        ; Main Stack and Zero Page
+ALTZPON         := $C009        ; Aux Stack and Zero Page
+ROMINNW         := $C082        ; Read ROM; no write
+ROMINWB1        := $C089        ; Read ROM; write RAM bank 1
+
 SLOT3           := $C300
 
-MON_SETTXT      := $FB39
-MON_TABV        := $FB5B
+;;; Monitor
+
+SETTXT          := $FB39
+TABV            := $FB5B
 SETPWRC         := $FB6F
 BELL1           := $FBDD
-MON_HOME        := $FC58
+HOME            := $FC58
 COUT            := $FDED
 SETINV          := $FE80
 SETNORM         := $FE84
 
-COL80HPOS       := $057B
-
-;;; ProDOS
-BITMAP          := $BF58
-BITMAP_SIZE     := $18          ; Bits for pages $00 to $BF
-DEVNUM          := $BF30        ; Most recent accessed device
-DEVCNT          := $BF31        ; Number of on-line devices minus 1
-DEVLST          := $BF32        ; Up to 14 units
-
-.scope DirectoryHeader
-        entry_length    := $23
-        entries_per_block := $24
-        file_count      := $25
-
-        size := $2B
-.endscope
-
-.scope FileEntry
-        storage_type    := $00     ; high nibble
-        name_length     := $00     ; low nibble
-        file_name       := $01
-        file_type       := $10
-        access          := $1E
-.endscope
-
-.scope FileType
-        Directory := $0F
-        System    := $FF
-.endscope
-
-;;; ASCII
+;;; ASCII/Key codes
 ASCII_TAB       := $9
 ASCII_DOWN      := $A           ; down arrow
 ASCII_UP        := $B           ; up arrow
 ASCII_CR        := $D
 ASCII_RIGHT     := $15          ; right arrow
-ASCII_SYN       := $16          ; scroll up
-ASCII_ETB       := $17          ; scroll down
+ASCII_SYN       := $16          ; scroll text window up
+ASCII_ETB       := $17          ; scroll text window down
 ASCII_EM        := $19          ; move cursor to upper left
 ASCII_ESCAPE    := $1B
 
@@ -330,10 +309,10 @@ finish_read:
 ;;; ------------------------------------------------------------
 
 .proc draw_screen
-        jsr     MON_SETTXT      ; TEXT
-        jsr     MON_HOME        ; HOME
+        jsr     SETTXT          ; TEXT
+        jsr     HOME            ; HOME
         lda     #23             ; VTAB 23
-        jsr     MON_TABV
+        jsr     TABV
 
         ;; Print help text
         ldy     #0
@@ -506,8 +485,8 @@ resize_prefix_and_open_jmp:
 ;;; ------------------------------------------------------------
 
 .proc launch_sys_file
-        jsr     MON_SETTXT
-        jsr     MON_HOME
+        jsr     SETTXT
+        jsr     HOME
         lda     #HI(ASCII_RIGHT) ; Right arrow
         jsr     COUT
 
@@ -579,7 +558,7 @@ done:   rts
         sbc     page_start
         inc     a
         inc     a
-        jsr     MON_TABV
+        jsr     TABV
 
         lda     types_table,x
         bmi     name            ; is sys file?
