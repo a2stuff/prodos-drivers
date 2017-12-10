@@ -34,6 +34,27 @@ DEVNUM          := $BF30        ; Most recent accessed device
 DEVCNT          := $BF31        ; Number of on-line devices minus 1
 DEVLST          := $BF32        ; Up to 14 units
 
+.scope DirectoryHeader
+        entry_length    := $23
+        entries_per_block := $24
+        file_count      := $25
+
+        size := $2B
+.endscope
+
+.scope FileEntry
+        storage_type    := $00     ; high nibble
+        name_length     := $00     ; low nibble
+        file_name       := $01
+        file_type       := $10
+        access          := $1E
+.endscope
+
+.scope FileType
+        Directory := $0F
+        System    := $FF
+.endscope
+
 ;;; ASCII
 ASCII_TAB       := $9
 ASCII_DOWN      := $A           ; down arrow
@@ -106,6 +127,10 @@ ASCII_ESCAPE    := $1B
         page_start      := $73  ; index of first entry shown on screen
 
         prefix_depth    := $6B  ; 0 = root
+
+        entry_length    := $6E
+        entries_per_block := $6F
+        file_count      := $70  ; 2 bytes
 
         max_entries     := 128  ; max # of entries; more are ignored
         types_table     := $74  ; high bit clear = dir, set = sys
@@ -186,44 +211,47 @@ check_device:
         jmp     keyboard_loop
 
 
-        directory_header_size   := $2B
-
         ;; Open succeeded
 :       inc     prefix_depth
         stz     num_entries
         lda     open_params_ref_num
         sta     read_params_ref_num
         sta     mark_ref_num
-        lda     #directory_header_size
+        lda     #DirectoryHeader::size
         sta     read_params_request
         stz     read_params_request+1
         jsr     do_read
-        bcs     L10B3
+        bcs     finish_read2
 
+        ;; Store entry_length/entries_per_block/file_count
         ldx     #3
-L109A:  lda     $2023,x
-        sta     $6E,x
+:       lda     read_buffer + DirectoryHeader::entry_length,x
+        sta     entry_length,x
         dex
-        bpl     L109A
+        bpl     :-
+
         sta     read_params_request
-        lda     #$01
-        sta     $72
+        lda     #1
+        sta     $72             ; ???
         stz     mark_position+1
         stz     mark_position+2
-        lda     $70
-        ora     $71
-        bne     L10B5
 
-L10B3:  bra     finish_read
+        lda     file_count
+        ora     file_count+1
+        bne     next_file_entry ; any files?
 
-L10B5:  bit     $71
-        bmi     L10B3
-L10B9:  lda     mark_position+1
+finish_read2:
+        bra     finish_read
+
+next_file_entry:
+        bit     file_count+1
+        bmi     finish_read2
+floop:  lda     mark_position+1
         and     #$FE
         sta     mark_position+1
         ldy     $72
-        lda     #$00
-        cpy     $6F
+        lda     #0
+        cpy     entries_per_block
         bcc     L10CE
         tay
         sty     $72
@@ -232,46 +260,57 @@ L10CC:  inc     mark_position+1
 L10CE:  dey
         clc
         bmi     L10D8
-        adc     $6E
+        adc     entry_length
         bcc     L10CE
         bcs     L10CC
-L10D8:  adc     #$04
+L10D8:  adc     #4
         sta     mark_position
         MLI_CALL SET_MARK, mark_params
-        bcs     L10B3
+        bcs     finish_read2
         jsr     do_read
-        bcs     L10B3
+        bcs     finish_read2
         inc     $72
-        lda     read_buffer
-        and     #$F0
-        beq     L10B9
-        dec     $70
-        bne     L10F8
-        dec     $71
-L10F8:  ror     $201E
-        bcc     L10B5
-        lda     $2010
-        cmp     #$0F
-        beq     L1108
-        cmp     #$FF
-        bne     L10B5
-L1108:  ldx     num_entries
+        lda     read_buffer + FileEntry::storage_type
+        and     #$F0            ; mask off storage_type
+        beq     floop           ; inactive file entry
+        dec     file_count
+        bne     :+
+        dec     file_count+1
+
+        ;; Check read access
+:       ror     read_buffer + FileEntry::access
+        bcc     next_file_entry
+
+        ;; Check file type
+        lda     read_buffer + FileEntry::file_type
+        cmp     #FileType::Directory
+        beq     :+
+        cmp     #FileType::System
+        bne     next_file_entry
+
+        ;; Check to see if we have room
+:       ldx     num_entries
         cpx     #max_entries
         bcs     finish_read
-        sta     types_table,x
-        jsr     update_curr_ptr
 
-        ldy     #$0F            ; name length
+        ;; Store type
+        sta     types_table,x
+
+        ;; Copy name
+        jsr     update_curr_ptr
+        ldy     #$0F            ; name length + 1 (includes length byte)
 :       lda     read_buffer,y
         sta     (curr_ptr),y
         dey
         bpl     :-
-
         iny                     ; Y = 0
-        and     #$0F
+        and     #$0F            ; mask off name length (remove storage_type)
         sta     (curr_ptr),y    ; store length
+
+        ;; Next
         inc     num_entries
-        bne     L10B5
+        bne     next_file_entry
+
 next:   jmp     next_device
 
 finish_read:
