@@ -132,6 +132,8 @@ ASCII_ESCAPE    := $1B
         entries_per_block := $6F
         file_count      := $70  ; 2 bytes
 
+        entry_num       := $72
+
         max_entries     := 128  ; max # of entries; more are ignored
         types_table     := $74  ; high bit clear = dir, set = sys
 
@@ -232,7 +234,7 @@ check_device:
 
         sta     read_params_request
         lda     #1
-        sta     $72             ; ???
+        sta     entry_num       ; ???
         stz     mark_position+1
         stz     mark_position+2
 
@@ -244,32 +246,38 @@ finish_read2:
         bra     finish_read
 
 next_file_entry:
-        bit     file_count+1
+        bit     file_count+1    ; wrap around?
         bmi     finish_read2
+
+
+        ;; TODO: The math here is mysterious; understand and document
 floop:  lda     mark_position+1
         and     #$FE
         sta     mark_position+1
-        ldy     $72
+        ldy     entry_num
         lda     #0
         cpy     entries_per_block
-        bcc     L10CE
+        bcc     :+
         tay
-        sty     $72
+        sty     entry_num
+
         inc     mark_position+1
-L10CC:  inc     mark_position+1
-L10CE:  dey
+carry:  inc     mark_position+1
+:       dey
         clc
-        bmi     L10D8
+        bmi     :+
         adc     entry_length
-        bcc     L10CE
-        bcs     L10CC
-L10D8:  adc     #4
+        bcc     :-
+        bcs     carry
+
+:       adc     #4
         sta     mark_position
         MLI_CALL SET_MARK, mark_params
         bcs     finish_read2
         jsr     do_read
         bcs     finish_read2
-        inc     $72
+
+        inc     entry_num
         lda     read_buffer + FileEntry::storage_type
         and     #$F0            ; mask off storage_type
         beq     floop           ; inactive file entry
