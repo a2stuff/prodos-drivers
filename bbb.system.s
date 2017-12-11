@@ -103,15 +103,14 @@ ASCII_ESCAPE    := $1B
         num_entries     := $68  ; length of |filenames|
         curr_len        := $69  ; length of current entry name
         curr_ptr        := $6C  ; address of current entry name (in |filenames|)
-        page_start      := $73  ; index of first entry shown on screen
 
         prefix_depth    := $6B  ; 0 = root
 
         entry_length    := $6E
         entries_per_block := $6F
         file_count      := $70  ; 2 bytes
-
         entry_num       := $72
+        page_start      := $73  ; index of first entry shown on screen
 
         max_entries     := 128  ; max # of entries; more are ignored
         types_table     := $74  ; high bit clear = dir, set = sys
@@ -128,8 +127,8 @@ ASCII_ESCAPE    := $1B
         stz     RESETVEC
         lda     #>bbb
         sta     RESETVEC+1
+        jsr     SETPWRC         ; update validity check byte
 
-        jsr     SETPWRC
         lda     #$A0
         jsr     SLOT3           ; Activate 80-Column Firmware
 
@@ -144,7 +143,7 @@ ASCII_ESCAPE    := $1B
 
         ;; Find device
         lda     #2
-        sta     $60
+        sta     mark_params
         ldx     DEVCNT          ; max device num
         stx     next_device_num
         lda     DEVNUM
@@ -213,7 +212,7 @@ check_device:
 
         sta     read_params_request
         lda     #1
-        sta     entry_num       ; ???
+        sta     entry_num
         stz     mark_position+1
         stz     mark_position+2
 
@@ -451,7 +450,7 @@ done:   rts
 next_drive:
         jmp     next_device
 
-dec_resize_prefix_and_open:
+inc_resize_prefix_and_open:
         inx
 
 resize_prefix_and_open_jmp:
@@ -476,7 +475,7 @@ resize_prefix_and_open_jmp:
 
         ldy     current_entry
         lda     types_table,y
-        bpl     dec_resize_prefix_and_open ; is directory???
+        bpl     inc_resize_prefix_and_open ; is directory???
         ;; nope, system file, so...
 
         ;; fall through
@@ -511,11 +510,11 @@ cout_string_hpos:
         sta     CH
 
 .proc cout_string
-        lda     help_string,y
+loop:   lda     help_string,y
         beq     done
         jsr     COUT
         iny
-        bne     cout_string
+        bne     loop
 done:   rts
 .endproc
 
@@ -649,6 +648,8 @@ trans:  .word   0
 .endproc
         read_params_ref_num := read_params::ref_num
         read_params_request := read_params::request
+
+        .assert read_params::request - bbb <= $300, error, "Must fit in $300 bytes"
 
 ;;; ------------------------------------------------------------
 
