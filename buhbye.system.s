@@ -324,7 +324,7 @@ close_dir:
         ;; Print help text
         lda     #20             ; HTAB 20
         sta     CH
-        ldy     #0              ; index into string buffer
+        ldy     #(help_string - text_resources)
         jsr     cout_string
 
         ;; Draw prefix
@@ -387,22 +387,7 @@ handy_rts:
 
 ;;; ------------------------------------------------------------
 
-.proc on_alpha
-loop:   jsr     down_common
-        jsr     draw_current_line
-        lda     KBD
-        and     #$5F            ; make ASCII and uppercase
-        ldy     #1
-        cmp     (curr_ptr),y    ; key = first char ?
-        beq     draw_current_line_inv
-        bra     loop
-.endproc
-
-;;; ------------------------------------------------------------
-
 .proc on_up
-        jsr     draw_current_line
-
         ldx     current_entry
         beq     draw_current_line_inv ; first one? just redraw
         dec     current_entry         ; go to previous
@@ -412,7 +397,7 @@ loop:   jsr     down_common
         bne     draw_current_line_inv ; if not, just draw
         dec     page_start      ; yes, adjust page and
         lda     #ASCII_SYN      ; scroll screen up
-        jsr     cout
+        jsr     COUT
         ;; fall through
 .endproc
 
@@ -430,8 +415,18 @@ draw_current_line_inv:
         bpl     keyboard_loop
         sta     KBDSTRB
         jsr     SETNORM
+
+        cmp     #HI(ASCII_TAB)
+        beq     next_drive
+        cmp     #HI(ASCII_ESCAPE)
+        beq     on_escape
+
         ldx     num_entries
-        beq     :+              ; no up/down/return if empty
+        beq     keyboard_loop   ; if empty, no navigation
+
+        pha
+        jsr     draw_current_line
+        pla
 
         cmp     #HI(ASCII_CR)
         beq     on_return
@@ -439,15 +434,20 @@ draw_current_line_inv:
         beq     on_down
         cmp     #HI(ASCII_UP)
         beq     on_up
-
-        cmp     #HI('A')
-        bcs     on_alpha
-
-:       cmp     #HI(ASCII_TAB)
-        beq     next_drive
-        cmp     #HI(ASCII_ESCAPE)
-        bne     keyboard_loop
         ;; fall through
+.endproc
+
+;;; ------------------------------------------------------------
+
+.proc on_alpha
+loop:   jsr     down_common
+        jsr     draw_current_line
+        lda     KBD
+        and     #$5F            ; make ASCII and uppercase
+        ldy     #1
+        cmp     (curr_ptr),y    ; key = first char ?
+        beq     draw_current_line_inv
+        bra     loop
 .endproc
 
 ;;; ------------------------------------------------------------
@@ -459,9 +459,7 @@ draw_current_line_inv:
 .endproc
 
 ;;; ------------------------------------------------------------
-
 .proc down_common
-        jsr     draw_current_line
         lda     current_entry
         inc     a
         cmp     num_entries     ; past the limit?
@@ -482,7 +480,7 @@ draw_current_line_inv:
 
 ;;; ------------------------------------------------------------
 
-next_drive:
+next_drive:                     ; relay for branches
         jmp     next_device
 
 inc_resize_prefix_and_open:
@@ -571,6 +569,7 @@ loop:   lda     help_string,y
         ldy     #0
         lda     (curr_ptr),y
         sta     curr_len
+        ;; fall through
 .endproc
 
 handy_rts2:
@@ -597,7 +596,7 @@ handy_rts2:
         stz     COL80HPOS
         lda     INVFLG
         pha
-        ldy     #(folder_string - string_start) ; Draw folder glyphs
+        ldy     #(folder_string - text_resources) ; Draw folder glyphs
         jsr     cout_string
         pla
         sta     INVFLG
@@ -638,7 +637,8 @@ cout:   jmp     COUT
 
 ;;; ------------------------------------------------------------
 
-        string_start := *
+        text_resources := *
+
 .proc help_string
         HIASCIIZ "RETURN: Select | TAB: Chg Vol | ESC: Back"
 .endproc
