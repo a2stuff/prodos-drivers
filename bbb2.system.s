@@ -404,21 +404,6 @@ handy_rts:
 
 ;;; ------------------------------------------------------------
 
-.proc down_common
-        lda     current_entry
-        inc     a
-        cmp     num_entries           ; past the limit?
-        bcs     handy_rts             ; yes, just redraw
-        sta     current_entry         ; go to next
-
-        lda     CV
-        cmp     #bottom_row     ; at the bottom?
-        bne     handy_rts
-        inc     page_start      ; yes, adjust page and
-        lda     #ASCII_ETB      ; scroll screen down
-        jmp     COUT            ; implicit rts
-.endproc
-
 .proc on_down
         jsr     down_common
         bra     draw_current_line_inv
@@ -443,14 +428,12 @@ handy_rts:
 ;;; ------------------------------------------------------------
 
 .proc on_alpha
-loop:   lda     KBD
+loop:   jsr     down_common
+        lda     KBD
         and     #$5F            ; make ASCII and uppercase
-        dec     a
         ldy     #1
         cmp     (curr_ptr),y    ; key < first char ?
-        bcc     draw_current_line_inv
-
-        jsr     down_common
+        beq     draw_current_line_inv
         jsr     draw_current_line
         bra     loop
 .endproc
@@ -491,6 +474,25 @@ draw_current_line_inv:
         cmp     #HI(ASCII_ESCAPE)
         bne     keyboard_loop
         ;; fall through
+.endproc
+
+.proc down_common
+        lda     current_entry
+        inc     a
+        cmp     num_entries     ; past the limit?
+        bcc     :+
+        pla                     ; yes - abort subroutine
+        pla
+        bra     draw_current_line_inv
+
+:       sta     current_entry   ; go to next
+
+        lda     CV
+        cmp     #bottom_row     ; at the bottom?
+        bne     handy_rts
+        inc     page_start      ; yes, adjust page and
+        lda     #ASCII_ETB      ; scroll screen down
+        jmp     COUT            ; implicit rts
 .endproc
 
 ;;; ------------------------------------------------------------
