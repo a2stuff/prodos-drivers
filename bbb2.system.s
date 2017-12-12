@@ -411,6 +411,19 @@ handy_rts:
 
 ;;; ------------------------------------------------------------
 
+.proc on_alpha
+loop:   jsr     down_common
+        jsr     draw_current_line
+        lda     KBD
+        and     #$5F            ; make ASCII and uppercase
+        ldy     #1
+        cmp     (curr_ptr),y    ; key = first char ?
+        beq     draw_current_line_inv
+        bra     loop
+.endproc
+
+;;; ------------------------------------------------------------
+
 .proc on_up
         ldx     current_entry
         beq     draw_current_line_inv ; first one? just redraw
@@ -423,19 +436,6 @@ handy_rts:
         lda     #ASCII_SYN      ; scroll screen up
         jsr     cout
         ;; fall through
-.endproc
-
-;;; ------------------------------------------------------------
-
-.proc on_alpha
-loop:   jsr     down_common
-        lda     KBD
-        and     #$5F            ; make ASCII and uppercase
-        ldy     #1
-        cmp     (curr_ptr),y    ; key < first char ?
-        beq     draw_current_line_inv
-        jsr     draw_current_line
-        bra     loop
 .endproc
 
 ;;; ------------------------------------------------------------
@@ -476,6 +476,16 @@ draw_current_line_inv:
         ;; fall through
 .endproc
 
+;;; ------------------------------------------------------------
+
+.proc on_escape
+        jsr     pop_prefix      ; leaves length in X
+        dec     prefix_depth
+        bra     resize_prefix_and_open_jmp
+.endproc
+
+;;; ------------------------------------------------------------
+
 .proc down_common
         lda     current_entry
         inc     a
@@ -493,14 +503,6 @@ draw_current_line_inv:
         inc     page_start      ; yes, adjust page and
         lda     #ASCII_ETB      ; scroll screen down
         jmp     COUT            ; implicit rts
-.endproc
-
-;;; ------------------------------------------------------------
-
-.proc on_escape
-        jsr     pop_prefix      ; leaves length in X
-        dec     prefix_depth
-        bra     resize_prefix_and_open_jmp
 .endproc
 
 ;;; ------------------------------------------------------------
