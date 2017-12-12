@@ -3,7 +3,6 @@
 ;;; (so this is Bell's Better Bird's Better Bye - Buh-Bye)
 ;;;  * alpha key advances to next matching filename
 ;;;  * replaced directory enumeration (smaller, per PDTRM)
-;;;  * rearranged zero page usage
 
         .setcpu "65C02"
         .include "apple2.inc"
