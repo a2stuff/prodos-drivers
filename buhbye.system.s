@@ -1,13 +1,13 @@
 ;;; Disassembly of BYE.SYSTEM (Bird's Better Bye)
 ;;; Modifications by Joshua Bell inexorabletash@gmail.com
+;;; (so this is Bell's Better Bird's Better Bye - Buh-Bye)
 ;;;  * alpha key advances to next matching filename
 ;;;  * replaced directory enumeration (smaller, per PDTRM)
+;;;  * rearranged zero page usage
 
         .setcpu "65C02"
         .include "apple2.inc"
         .include "prodos.inc"
-
-        .feature c_comments
 
 ;;; Miscellaneous
 
@@ -84,12 +84,15 @@ ASCII_ESCAPE    := $1B
         jmp     install_and_quit
         install_src := *
 
+        install_size := $300    ; must fit in $D100...$D3FF = $300
+        padded_size := $400     ; but some struct members can spill past end
+
 ;;; ------------------------------------------------------------
 ;;; Selector
 ;;; ------------------------------------------------------------
 
         .org    $1000
-.proc bbb
+.proc selector
 
         prefix  := $280         ; length-prefixed
 
@@ -399,6 +402,8 @@ loop:   jsr     down_common
 ;;; ------------------------------------------------------------
 
 .proc on_up
+        jsr     draw_current_line
+
         ldx     current_entry
         beq     draw_current_line_inv ; first one? just redraw
         dec     current_entry         ; go to previous
@@ -429,10 +434,6 @@ draw_current_line_inv:
         ldx     num_entries
         beq     :+              ; no up/down/return if empty
 
-        pha
-        jsr     draw_current_line
-        pla
-
         cmp     #HI(ASCII_CR)
         beq     on_return
         cmp     #HI(ASCII_DOWN)
@@ -461,6 +462,7 @@ draw_current_line_inv:
 ;;; ------------------------------------------------------------
 
 .proc down_common
+        jsr     draw_current_line
         lda     current_entry
         inc     a
         cmp     num_entries     ; past the limit?
@@ -687,20 +689,19 @@ trans:  .word   0
 
 ;;; ------------------------------------------------------------
 
-        .assert read_params::request - bbb <= $300, error, "Must fit in $300 bytes"
+        .assert read_params::request - selector <= install_size, error, "Must fit in $300 bytes"
 
-        .res    $13FF-*-2, 0
-        .byte   $48,$AD         ; 72, 173 ???
+        .res    ($1000 + $400) - *, 0 ; (selector + install_size) - *
 
 .endproc
 
-        .assert .sizeof(bbb) = $3FF, error, "Expected size is $3FF"
+        .assert .sizeof(selector) = padded_size, error, "Expected size is $400"
 
 ;;; ------------------------------------------------------------
 ;;; Installer
 ;;; ------------------------------------------------------------
 
-        .org    $2402
+        .org    $2403           ; $2000 + JMP to here
 
 .proc install_and_quit
         jsr     install
@@ -719,19 +720,21 @@ res3:   .addr   0
 
 .proc install
         src := install_src
-        end := install_src + .sizeof(bbb)
+        end := install_src + install_size
         dst := $D100            ; Install location in ProDOS (bank 2)
 
         src_ptr := $19
         dst_ptr := $1B
 
         sta     ALTZPOFF
+        lda     ROMIN           ; write bank 2
         lda     ROMIN
-        lda     ROMIN
+
         lda     #>src
         sta     src_ptr+1
         lda     #<src
         sta     src_ptr
+
         lda     #>dst
         sta     dst_ptr+1
         lda     #<dst
@@ -739,20 +742,22 @@ res3:   .addr   0
 
 loop:   lda     (src_ptr)
         sta     (dst_ptr)
-        inc     src_ptr
+
+        inc     src_ptr         ; src_ptr++
         bne     :+
         inc     src_ptr+1
-:       inc     dst_ptr
+
+:       inc     dst_ptr         ; dst_ptr++
         bne     :+
         inc     dst_ptr+1
-:       lda     src_ptr+1
+
+:       lda     src_ptr+1       ;
         cmp     #>end
         bne     loop
         lda     src_ptr
         cmp     #<end
         bne     loop
-        lda     (src_ptr)       ; WTF??
-        sta     (dst_ptr)
+
         sta     ALTZPOFF
         sta     ROMINWB1
         sta     ROMINWB1

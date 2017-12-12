@@ -3,7 +3,7 @@ CC65 = ~/dev/cc65/bin
 CAFLAGS = --target apple2enh --list-bytes 0
 CCFLAGS = --config apple2-asm.cfg
 
-TARGETS = bbb.system.SYS bbb2.system.SYS
+TARGETS = bye.system.SYS buhbye.system.SYS
 
 .PHONY: clean all
 all: $(TARGETS)
