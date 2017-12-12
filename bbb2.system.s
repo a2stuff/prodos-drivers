@@ -96,31 +96,32 @@ ASCII_ESCAPE    := $1B
         filenames       := $1400 ; each is length + 15 bytes
         read_buffer     := $2000 ; Also, start location for launched SYS files
 
+        ;; Device/Prefix enumeration
+        next_device_num := $65  ; next device number to try
+        prefix_depth    := $6B  ; 0 = root
+
+        ;; Directory enumeration
         entry_pointer   := $60  ; 2 bytes
         block_entries   := $62
         active_entries  := $63  ; 2 bytes
-
-        next_device_num := $65  ; next device number to try
-
-        current_entry   := $67  ; index of current entry
-        num_entries     := $68  ; length of |filenames|
-        curr_len        := $69  ; length of current entry name
-        curr_ptr        := $6C  ; address of current entry name (in |filenames|)
-
-        prefix_depth    := $6B  ; 0 = root
 
         entry_length    := $6E
         entries_per_block := $6F
         file_count      := $70  ; 2 bytes
 
-        entry_num       := $72
-        page_start      := $73  ; index of first entry shown on screen
-
-        max_entries     := 128  ; max # of entries; more are ignored
+        ;; Found entries
+        current_entry   := $67  ; index of current entry
+        num_entries     := $68  ; length of |filenames| (max 128)
+        curr_len        := $69  ; length of current entry name
+        curr_ptr        := $6C  ; address of current entry name (in |filenames|)
         types_table     := $74  ; high bit clear = dir, set = sys
 
+        ;; Entry display
+        page_start      := $73  ; index of first entry shown on screen
+        row_count       := $6A  ; number of rows in this page
         top_row         := 2    ; first row used on screen
         bottom_row      := 21   ; last row used on screen
+
 
 ;;; ------------------------------------------------------------
 
@@ -338,16 +339,14 @@ close_dir:
         lda     num_entries
         beq     keyboard_loop   ; no entries (empty directory)
 
-        row_count := $6A
-
         cmp     #bottom_row     ; more entries than fit?
         bcc     :+
         lda     #(bottom_row - top_row + 1)
 :       sta     row_count
-        lda     #2
+        lda     #top_row
         sta     WNDTOP
         sta     WNDLFT
-        lda     #22
+        lda     #bottom_row+1
         sta     WNDWDTH
         sta     WNDBTM
 loop:   jsr     draw_current_line
