@@ -1,5 +1,7 @@
 ;;; Disassembly of BYE.SYSTEM (Bird's Better Bye)
-;;; Additions by Joshua Bell inexorabletash@gmail.com
+;;; Modifications by Joshua Bell inexorabletash@gmail.com
+;;;  * alpha key advances to next matching filename
+;;;  * replaced directory enumeration (smaller, per PDTRM)
 
         .setcpu "65C02"
         .include "apple2.inc"
@@ -175,10 +177,10 @@ check_device:
 
         stz     num_entries
 
-;;; From ProDOS Technical Reference Manual B.2.5
-;;;
-;;; Open(DirPathname, Refnum);               {Get reference number    }
+;;; Enumerate directory
+;;; Algorithm from ProDOS Technical Reference Manual B.2.5
 
+        ;; Open the directory
         jsr     do_open
         bcc     :+
 
@@ -191,17 +193,12 @@ fail:   lda     prefix_depth    ; root?
         ;; Open succeeded
 :       inc     prefix_depth
 
-;;; ThisBlock       := Read512Bytes(RefNum); {Read a block into buffer}
-
+        ;; Read a block (512 bytes) into buffer
         stz     read_params_request
         lda     #2
         sta     read_params_request+1
         jsr     do_read
         bcs     fail
-
-;;; EntryLength     := ThisBlock[$23];       {Get directory info      }
-;;; EntriesPerBlock := ThisBlock[$24];
-;;; FileCount       := ThisBlock[$25] + (256 * ThisBlock[$26]) ;
 
         ;; Store entry_length (byte), entries_per_block (byte), file_count (word)
         ldx     #3
@@ -210,105 +207,89 @@ fail:   lda     prefix_depth    ; root?
         dex
         bpl     :-
 
-;;; EntryPoint      := EntryLength + $04;         {Skip header entry}
+        ;; Any entries?
+        lda     file_count
+        ora     file_count+1
+        beq     close_dir
+
+        ;; Skip header entry
         clc
-        lda     #<(read_buffer+4)
+        lda     #<(read_buffer+4) ; 4 bytes for prev/next pointers
         adc     entry_length
         sta     entry_pointer
         lda     #>(read_buffer+4)
         adc     #0              ; TODO: Can skip this if entry_length << 256
         sta     entry_pointer+1
 
-;;; BlockEntries    := $02;            {Prepare to process entry two}
+        ;; Prepare to process entry two (first "entry" is header)
         lda     #2
         sta     block_entries
 
-;;; ActiveEntries   := $00;            {No active entries found yet }
-        ;; just decrement file_count
-
-;;; while ActiveEntries < FileCount do begin
-        lda     file_count
-        ora     file_count+1
-        beq     close_dir
-
 while_loop:
-
-;;;      if ThisBlock[EntryPointer] <> $00 then begin  {Active entry}
-
+        ;; Check if entry is active
         lda     (entry_pointer)
         beq     done_entry
-
-;;;           ProcessEntry(ThisBlock[EntryPointer]);
 
         ;; Check file type
         ldy     #FileEntry::file_type
         lda     (entry_pointer),y
         cmp     #FileType::Directory
-        beq     :+
+        beq     good_entry
         cmp     #FileType::System
-        bne     finish_entry
-:
+        bne     done_active_entry
 
+good_entry:
         ;; Store type
         ldx     num_entries
         sta     types_table,x
 
-        ;; Copy name
-        jsr     update_curr_ptr
-        ldy     #15           ; name length (length byte copied too)
+        ;; Copy name into |filenames|
+        jsr     update_curr_ptr ; current entry in X
+        ldy     #15             ; max name length (length byte copied too)
 :       lda     (entry_pointer),y
         sta     (curr_ptr),y
         dey
         bpl     :-
-        iny                     ; Y = 0
-        and     #%00001111      ; mask off name length (remove storage_type)
+        iny                     ; Y = 0; storage_type/name_length in A
+        and     #%00001111      ; mask off name_length (remove storage_type)
         sta     (curr_ptr),y    ; store length
 
         inc     num_entries
 
-;;;           ActiveEntries := ActiveEntries + $01
-finish_entry:
+done_active_entry:
         dec     file_count
         bpl     :+
         dec     file_count+1
 :
 
-;;;      end;
-
 done_entry:
-
-;;;      if ActiveEntries < FileCount then  {More entries to process}
+        ;;  Seen all active entries?
         lda     file_count
         ora     file_count+1
         beq     close_dir
 
-;;;           if BlockEntries = EntriesPerBlock
+        ;; Seen all entries in this block?
         lda     block_entries
         cmp     entries_per_block
         bne     next_in_block
 
-;;;                then begin           {ThisBlock done. Do next one}
-;;;                     ThisBlock    := Read512Bytes(RefNum);
-        jsr     do_read
+        ;; Grab next block
+next_block:
+        jsr     do_read         ; read another block
         bcs     fail
 
-;;;                     BlockEntries := $01;
-        lda     #1
+        lda     #1              ; first entry in non-key block
         sta     block_entries
 
-;;;                     EntryPointer := $04
-        lda     #<(read_buffer+4)
+        lda     #<(read_buffer+4) ; 4 bytes for prev/next pointers
         sta     entry_pointer
         lda     #>(read_buffer+4)
         sta     entry_pointer+1
 
-;;;                end
         bra     end_while
 
-;;;                else begin           {Do next entry in ThisBlock }
+        ;; Next entry in current block
 next_in_block:
-
-;;;                     EntryPointer := EntryPointer + EntryLength;
         clc
         lda     entry_pointer
         adc     entry_length
@@ -317,20 +298,14 @@ next_in_block:
         adc     #0
         sta     entry_pointer+1
 
-;;;                     BlockEntries := BlockEntries + $01
         inc     block_entries
-
-;;;                end
 
 end_while:
         ;; Check to see if we have room
         bit     num_entries     ; max is 128
         bpl     while_loop
 
-;;; end;
-
 close_dir:
-;;; Close(RefNum);
         MLI_CALL CLOSE, close_params
         ;; fall through
 .endproc
@@ -705,7 +680,7 @@ path:   .addr   prefix
 params: .byte   4
 ref_num:.byte   1
 buffer: .word   read_buffer
-request:.word   0
+request:.word   0               ; This can be beyond $12FF - MARKER
 trans:  .word   0
 .endproc
         read_params_ref_num := read_params::ref_num
