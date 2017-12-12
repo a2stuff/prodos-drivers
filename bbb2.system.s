@@ -76,6 +76,7 @@ ASCII_ESCAPE    := $1B
 ;;; ------------------------------------------------------------
 
         ;; Loads at $2000 but executed at $1000.
+
         .org    $2000
 
         jmp     install_and_quit
@@ -93,9 +94,10 @@ ASCII_ESCAPE    := $1B
         filenames       := $1400 ; each is length + 15 bytes
         read_buffer     := $2000 ; Also, start location for launched SYS files
 
-        mark_params     := $60
-        mark_ref_num    := $61
-        mark_position   := $62  ; 3-bytes
+        entry_pointer   := $60  ; 2 bytes
+        block_entries   := $62
+        active_entries  := $63  ; 2 bytes
+
         next_device_num := $65  ; next device number to try
 
         current_entry   := $67  ; index of current entry
@@ -136,10 +138,8 @@ ASCII_ESCAPE    := $1B
         sta     BITMAP
 
         ;; Find device
-        lda     #2
-        sta     mark_params
-        ldx     DEVCNT          ; max device num
-        stx     next_device_num
+        lda     DEVCNT          ; max device num
+        sta     next_device_num
         lda     DEVNUM
         bne     check_device
 
@@ -169,126 +169,168 @@ check_device:
 .proc resize_prefix_and_open
         stx     prefix
         lda     #'/'
-        sta     prefix+1
-        sta     prefix,x
-        stz     prefix+1,x
+        sta     prefix+1        ; ensure prefix is at least '/'
+        sta     prefix,x        ; and ends with '/'
+        stz     prefix+1,x      ; and is null terminated
+
+        stz     num_entries
+
+;;; From ProDOS Technical Reference Manual B.2.5
+;;;
+;;; Open(DirPathname, Refnum);               {Get reference number    }
 
         jsr     do_open
         bcc     :+
 
         ;; Open failed
-        lda     prefix_depth    ; root?
+fail:   lda     prefix_depth    ; root?
         beq     next_device
-        jsr     pop_prefix      ; no, but failed; go up a level
-        stx     prefix
-        jmp     keyboard_loop
+        jsr     pop_prefix      ; and go up a level
+        bra     resize_prefix_and_open
 
         ;; Open succeeded
 :       inc     prefix_depth
-        stz     num_entries
-        lda     #DirectoryHeader::size
-        sta     read_params_request
-        stz     read_params_request+1
-        jsr     do_read
-        bcs     finish_read2
 
-        ;; Store entry_length/entries_per_block/file_count
+;;; ThisBlock       := Read512Bytes(RefNum); {Read a block into buffer}
+
+        stz     read_params_request
+        lda     #2
+        sta     read_params_request+1
+        jsr     do_read
+        bcs     fail
+
+;;; EntryLength     := ThisBlock[$23];       {Get directory info      }
+;;; EntriesPerBlock := ThisBlock[$24];
+;;; FileCount       := ThisBlock[$25] + (256 * ThisBlock[$26]) ;
+
+        ;; Store entry_length (byte), entries_per_block (byte), file_count (word)
         ldx     #3
 :       lda     read_buffer + DirectoryHeader::entry_length,x
         sta     entry_length,x
         dex
         bpl     :-
 
-        sta     read_params_request
-        lda     #1
-        sta     entry_num
-        stz     mark_position+1
-        stz     mark_position+2
+;;; EntryPoint      := EntryLength + $04;         {Skip header entry}
+        clc
+        lda     #<(read_buffer+4)
+        adc     entry_length
+        sta     entry_pointer
+        lda     #>(read_buffer+4)
+        adc     #0              ; TODO: Can skip this if entry_length << 256
+        sta     entry_pointer+1
 
+;;; BlockEntries    := $02;            {Prepare to process entry two}
+        lda     #2
+        sta     block_entries
+
+;;; ActiveEntries   := $00;            {No active entries found yet }
+        ;; just decrement file_count
+
+;;; while ActiveEntries < FileCount do begin
         lda     file_count
         ora     file_count+1
-        bne     next_file_entry ; any files?
+        beq     close_dir
 
-finish_read2:
-        bra     finish_read
+while_loop:
 
-next_file_entry:
-        bit     file_count+1    ; wrap around?
-        bmi     finish_read2
+;;;      if ThisBlock[EntryPointer] <> $00 then begin  {Active entry}
 
+        lda     (entry_pointer)
+        beq     done_entry
 
-        ;; TODO: The math here is mysterious; understand and document
-floop:  lda     mark_position+1
-        and     #$FE
-        sta     mark_position+1
-        ldy     entry_num
-        lda     #0
-        cpy     entries_per_block
-        bcc     :+
-        tay
-        sty     entry_num
-
-        inc     mark_position+1
-carry:  inc     mark_position+1
-:       dey
-        clc
-        bmi     :+
-        adc     entry_length
-        bcc     :-
-        bcs     carry
-
-:       adc     #4
-        sta     mark_position
-        MLI_CALL SET_MARK, mark_params
-        bcs     finish_read2
-        jsr     do_read
-        bcs     finish_read2
-
-        inc     entry_num
-        lda     read_buffer + FileEntry::storage_type
-        and     #$F0            ; mask off storage_type
-        beq     floop           ; inactive file entry
-        dec     file_count
-        bne     :+
-        dec     file_count+1
-
-        ;; Check read access
-:       ror     read_buffer + FileEntry::access
-        bcc     next_file_entry
+;;;           ProcessEntry(ThisBlock[EntryPointer]);
 
         ;; Check file type
-        lda     read_buffer + FileEntry::file_type
+        ldy     #FileEntry::file_type
+        lda     (entry_pointer),y
         cmp     #FileType::Directory
         beq     :+
         cmp     #FileType::System
-        bne     next_file_entry
-
-        ;; Check to see if we have room
-:       ldx     num_entries
-        cpx     #max_entries
-        bcs     finish_read
+        bne     finish_entry
+:
 
         ;; Store type
+        ldx     num_entries
         sta     types_table,x
 
         ;; Copy name
         jsr     update_curr_ptr
-        ldy     #$0F            ; name length + 1 (includes length byte)
-:       lda     read_buffer,y
+        ldy     #15           ; name length (length byte copied too)
+:       lda     (entry_pointer),y
         sta     (curr_ptr),y
         dey
         bpl     :-
         iny                     ; Y = 0
-        and     #$0F            ; mask off name length (remove storage_type)
+        and     #%00001111      ; mask off name length (remove storage_type)
         sta     (curr_ptr),y    ; store length
 
-        ;; Next
         inc     num_entries
-        bne     next_file_entry
 
-next:   jmp     next_device
+;;;           ActiveEntries := ActiveEntries + $01
+finish_entry:
+        dec     file_count
+        bpl     :+
+        dec     file_count+1
+:
 
-finish_read:
+;;;      end;
+
+done_entry:
+
+;;;      if ActiveEntries < FileCount then  {More entries to process}
+        lda     file_count
+        ora     file_count+1
+        beq     close_dir
+
+;;;           if BlockEntries = EntriesPerBlock
+        lda     block_entries
+        cmp     entries_per_block
+        bne     next_in_block
+
+;;;                then begin           {ThisBlock done. Do next one}
+;;;                     ThisBlock    := Read512Bytes(RefNum);
+        jsr     do_read
+        bcs     fail
+
+;;;                     BlockEntries := $01;
+        lda     #1
+        sta     block_entries
+
+;;;                     EntryPointer := $04
+        lda     #<(read_buffer+4)
+        sta     entry_pointer
+        lda     #>(read_buffer+4)
+        sta     entry_pointer+1
+
+;;;                end
+        bra     end_while
+
+;;;                else begin           {Do next entry in ThisBlock }
+next_in_block:
+
+;;;                     EntryPointer := EntryPointer + EntryLength;
+        clc
+        lda     entry_pointer
+        adc     entry_length
+        sta     entry_pointer
+        lda     entry_pointer+1
+        adc     #0
+        sta     entry_pointer+1
+
+;;;                     BlockEntries := BlockEntries + $01
+        inc     block_entries
+
+;;;                end
+
+end_while:
+        ;; Check to see if we have room
+        bit     num_entries     ; max is 128
+        bpl     while_loop
+
+;;; end;
+
+close_dir:
+;;; Close(RefNum);
         MLI_CALL CLOSE, close_params
         ;; fall through
 .endproc
@@ -403,11 +445,13 @@ handy_rts:
 .proc on_alpha
 loop:   lda     KBD
         and     #$5F            ; make ASCII and uppercase
+        dec     a
         ldy     #1
         cmp     (curr_ptr),y    ; key < first char ?
         bcc     draw_current_line_inv
 
         jsr     down_common
+        jsr     draw_current_line
         bra     loop
 .endproc
 
@@ -428,7 +472,6 @@ draw_current_line_inv:
         ldx     num_entries
         beq     :+              ; no up/down/return if empty
 
-        ;; BUG: overwrites A
         pha
         jsr     draw_current_line
         pla
@@ -606,7 +649,6 @@ cout:   jmp     COUT
         MLI_CALL OPEN, open_params
         lda     open_params_ref_num
         sta     read_params_ref_num
-        sta     mark_ref_num
         rts
 .endproc
 
@@ -671,8 +713,8 @@ trans:  .word   0
 
         .res    $13FF-*-2, 0
         .byte   $48,$AD         ; 72, 173 ???
-.endproc
 
+.endproc
 
         .assert .sizeof(bbb) = $3FF, error, "Expected size is $3FF"
 
