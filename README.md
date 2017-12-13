@@ -1,4 +1,4 @@
-# Bird's Better Bye - Diassembly (and improvements)
+# Bird's Better Bye - Disassembly (and improvements)
 
 The ProDOS operating system for the Apple II personal computer line
 supported a quit routine (invoked from BASIC with the `BYE` command)
