@@ -237,11 +237,11 @@ while_loop:
         ldy     #FileEntry::file_type
         lda     (entry_pointer),y
         cmp     #FileType::Directory
-        beq     good_entry
+        beq     store_entry
         cmp     #FileType::System
         bne     done_active_entry
 
-good_entry:
+store_entry:
         ;; Store type
         ldx     num_entries
         sta     types_table,x
@@ -339,8 +339,9 @@ close_dir:
 :       stz     current_entry
         stz     page_start
         lda     num_entries
-        beq     keyboard_loop   ; no entries (empty directory)
+        beq     selection_loop_keyboard_loop   ; no entries (empty directory)
 
+        ;; Draw entries
         cmp     #bottom_row     ; more entries than fit?
         bcc     :+
         lda     #(bottom_row - top_row + 1)
@@ -356,7 +357,7 @@ loop:   jsr     draw_current_line
         dec     row_count
         bne     loop
         stz     current_entry
-        beq     draw_current_line_inv
+        beq     selection_loop
 .endproc
 
 ;;; ------------------------------------------------------------
@@ -382,19 +383,19 @@ handy_rts:
 
 .proc on_down
         jsr     down_common
-        bra     draw_current_line_inv
+        bra     selection_loop
 .endproc
 
 ;;; ------------------------------------------------------------
 
 .proc on_up
-        ldx     current_entry
-        beq     draw_current_line_inv ; first one? just redraw
-        dec     current_entry         ; go to previous
+        ldx     current_entry   ; first one?
+        beq     selection_loop
+        dec     current_entry   ; go to previous
 
         lda     CV
         cmp     #top_row        ; at the top?
-        bne     draw_current_line_inv ; if not, just draw
+        bne     selection_loop
         dec     page_start      ; yes, adjust page and
         lda     #ASCII_SYN      ; scroll screen up
         jsr     COUT
@@ -403,14 +404,11 @@ handy_rts:
 
 ;;; ------------------------------------------------------------
 
-draw_current_line_inv:
+.proc selection_loop
         jsr     SETINV
         jsr     draw_current_line
-        ;; fall through
 
-;;; ------------------------------------------------------------
-
-.proc keyboard_loop
+keyboard_loop:
         lda     KBD
         bpl     keyboard_loop
         sta     KBDSTRB
@@ -436,6 +434,7 @@ draw_current_line_inv:
         beq     on_up
         ;; fall through
 .endproc
+        selection_loop_keyboard_loop := selection_loop::keyboard_loop
 
 ;;; ------------------------------------------------------------
 
@@ -446,7 +445,7 @@ loop:   jsr     down_common
         and     #$5F            ; make ASCII and uppercase
         ldy     #1
         cmp     (curr_ptr),y    ; key = first char ?
-        beq     draw_current_line_inv
+        beq     selection_loop
         bra     loop
 .endproc
 
@@ -466,7 +465,7 @@ loop:   jsr     down_common
         bcc     :+
         pla                     ; yes - abort subroutine
         pla
-        bra     draw_current_line_inv
+        bra     selection_loop
 
 :       sta     current_entry   ; go to next
 
