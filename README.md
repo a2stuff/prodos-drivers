@@ -20,11 +20,12 @@ with _Bird's Better Bye_.
 
 The new (unofficial) releases of
 [ProDOS 2.4](http://www.callapple.org/uncategorized/announcing-prodos-2-4-for-all-apple-ii-computers/)
-by John Brooks include a replacement quit routine called Bitsy Bye.
-This new quit routine is far more powerful, allowing access to BASIC
-and binary files (and more), drive selection, type-down, more entries,
-and so on. It runs on older hardware than _Bird's Better Bye_ so
-uses only 40 columns, and does not require a 65C02 processor.
+by John Brooks include a replacement quit routine called Bitsy Bye,
+a collaboration with Peter Ferrie. This new quit routine is far more
+powerful, allowing access to BASIC and binary files (and more), drive
+selection, type-down, more entries, and so on. It runs on older
+hardware than _Bird's Better Bye_ so uses only 40 columns, and does
+not require a 65C02 processor.
 
 Impressed though I am with the power of Bitsy Bye, I am not a fan of
 its aesthetics - the display is "cluttered" to my eye.
