@@ -73,18 +73,72 @@ ASCII_ESCAPE    := $1B
 ;;; area is Apple's dispatcher code.
 
 ;;; ------------------------------------------------------------
-;;; Entry point
+;;; Installer
 ;;; ------------------------------------------------------------
-
-        ;; Loads at $2000 but executed at $1000.
 
         .org    $2000
 
-        jmp     install_and_quit
-        install_src := *
-
         install_size := $300    ; must fit in $D100...$D3FF = $300
-        padded_size := $400     ; but some struct members can spill past end
+
+.proc install
+        src := install_src
+        end := install_src + install_size
+        dst := $D100            ; Install location in ProDOS (bank 2)
+
+        src_ptr := $19
+        dst_ptr := $1B
+
+        sta     ALTZPOFF
+        lda     ROMIN           ; write bank 2
+        lda     ROMIN
+
+        lda     #<src           ; src_ptr = src
+        sta     src_ptr
+        lda     #>src
+        sta     src_ptr+1
+
+        lda     #<dst           ; dst_ptr = dst
+        sta     dst_ptr
+        lda     #>dst
+        sta     dst_ptr+1
+
+loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
+        sta     (dst_ptr)
+
+        inc     src_ptr         ; src_ptr++
+        bne     :+
+        inc     src_ptr+1
+
+:       inc     dst_ptr         ; dst_ptr++
+        bne     :+
+        inc     dst_ptr+1
+
+:       lda     src_ptr+1       ; src_ptr == end ?
+        cmp     #>end
+        bne     loop
+        lda     src_ptr
+        cmp     #<end
+        bne     loop
+
+        sta     ALTZPOFF
+        sta     ROMINWB1
+        sta     ROMINWB1
+        ;; fall through
+.endproc
+
+.proc quit
+        MLI_CALL QUIT, params
+
+.proc params
+params: .byte   4
+type:   .byte   0
+res1:   .word   0
+res2:   .byte   0
+res3:   .addr   0
+.endproc
+.endproc
+
+        install_src := *
 
 ;;; ------------------------------------------------------------
 ;;; Selector
@@ -93,7 +147,7 @@ ASCII_ESCAPE    := $1B
         .org    $1000
 .proc selector
 
-        prefix  := $280         ; length-prefixed
+        prefix          := $280 ; length-prefixed
 
         filenames       := $1400 ; each is length + 15 bytes
         read_buffer     := $2000 ; Also, start location for launched SYS files
@@ -689,75 +743,4 @@ trans:  .word   0
 
         .assert read_params::request - selector <= install_size, error, "Must fit in $300 bytes"
 
-        .res    ($1000 + $400) - *, 0 ; (selector + install_size) - *
-
-.endproc
-
-        .assert .sizeof(selector) = padded_size, error, "Expected size is $400"
-
-;;; ------------------------------------------------------------
-;;; Installer
-;;; ------------------------------------------------------------
-
-        .org    $2403           ; $2000 + JMP to here
-
-.proc install_and_quit
-        jsr     install
-        MLI_CALL QUIT, params
-
-.proc params
-params: .byte   4
-type:   .byte   0
-res1:   .word   0
-res2:   .byte   0
-res3:   .addr   0
-.endproc
-.endproc
-
-;;; ------------------------------------------------------------
-
-.proc install
-        src := install_src
-        end := install_src + install_size
-        dst := $D100            ; Install location in ProDOS (bank 2)
-
-        src_ptr := $19
-        dst_ptr := $1B
-
-        sta     ALTZPOFF
-        lda     ROMIN           ; write bank 2
-        lda     ROMIN
-
-        lda     #>src
-        sta     src_ptr+1
-        lda     #<src
-        sta     src_ptr
-
-        lda     #>dst
-        sta     dst_ptr+1
-        lda     #<dst
-        sta     dst_ptr
-
-loop:   lda     (src_ptr)
-        sta     (dst_ptr)
-
-        inc     src_ptr         ; src_ptr++
-        bne     :+
-        inc     src_ptr+1
-
-:       inc     dst_ptr         ; dst_ptr++
-        bne     :+
-        inc     dst_ptr+1
-
-:       lda     src_ptr+1       ;
-        cmp     #>end
-        bne     loop
-        lda     src_ptr
-        cmp     #<end
-        bne     loop
-
-        sta     ALTZPOFF
-        sta     ROMINWB1
-        sta     ROMINWB1
-        rts
 .endproc
