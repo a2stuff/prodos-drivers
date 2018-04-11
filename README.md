@@ -1,4 +1,6 @@
-# _The Cricket!_ &mdash; ProDOS Clock Driver
+# _The Cricket!_ &mdash; ProDOS Clock Driver 
+
+[![Build Status](https://travis-ci.org/inexorabletash/cricket.svg?branch=master)](https://travis-ci.org/inexorabletash/cricket)
 
 I acquired a Cricket sound/clock peripheral on eBay. Therefore it is now critical that we have a conforming ProDOS clock driver for it.
 
