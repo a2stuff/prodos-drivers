@@ -27,3 +27,4 @@ clean:
 
 %.BIN %.SYS: %.o
 	$(CC65)/ld65 $(CCFLAGS) -o $@ $<
+	xattr -wx prodos.AuxType '00 20' $@
