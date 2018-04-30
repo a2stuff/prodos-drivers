@@ -3,9 +3,16 @@ CC65 = ~/dev/cc65/bin
 CAFLAGS = --target apple2enh --list-bytes 0
 CCFLAGS = --config apple2-asm.cfg
 
-TARGETS = prodos.mod.BIN ns.clock.system.SYS cricket.system.SYS \
-	test.BIN \
-	date.BIN set.time.BIN set.date.BIN
+OUTDIR = out
+
+TARGETS = \
+	$(OUTDIR)/prodos.mod.BIN \
+	$(OUTDIR)/ns.clock.system.SYS \
+	$(OUTDIR)/cricket.system.SYS \
+	$(OUTDIR)/test.BIN \
+	$(OUTDIR)/date.BIN \
+	$(OUTDIR)/set.time.BIN \
+	$(OUTDIR)/set.date.BIN
 
 # For timestamps
 MM = $(shell date "+%m")
@@ -19,12 +26,13 @@ all: $(TARGETS)
 HEADERS = $(wildcard *.inc)
 
 clean:
-	rm -f *.o
-	rm -f $(TARGETS)
+	rm -f $(OUTDIR)/*.o
+	rm -f $(OUTDIR)/*.list
+	rm -f $(OUTDIR)/$(TARGETS)
 
-%.o: %.s $(HEADERS)
+$(OUTDIR)/%.o: %.s $(HEADERS)
 	$(CC65)/ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
-%.BIN %.SYS: %.o
+$(OUTDIR)/%.BIN $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	$(CC65)/ld65 $(CCFLAGS) -o $@ $<
 	xattr -wx prodos.AuxType '00 20' $@

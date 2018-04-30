@@ -4,8 +4,7 @@ language: c
 
 install:
   - git clone https://github.com/cc65/cc65 /tmp/cc65 &&
-    make -C /tmp/cc65 bin apple2 apple2enh &&
-    /tmp/cc65/bin/cc65 --version
+    make -C /tmp/cc65 ca65 ld65
 
 script:
   - make CC65=/tmp/cc65/bin
