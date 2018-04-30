@@ -21,7 +21,10 @@ YY = $(shell date "+%y")
 DEFINES = -D DD=$(DD) -D MM=$(MM) -D YY=$(YY)
 
 .PHONY: clean all
-all: $(TARGETS)
+all: $(OUTDIR) $(TARGETS)
+
+$(OUTDIR):
+	mkdir -p $(OUTDIR)
 
 HEADERS = $(wildcard *.inc)
 
@@ -29,6 +32,8 @@ clean:
 	rm -f $(OUTDIR)/*.o
 	rm -f $(OUTDIR)/*.list
 	rm -f $(OUTDIR)/$(TARGETS)
+	
+	
 
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	$(CC65)/ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
