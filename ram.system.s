@@ -3,12 +3,14 @@
         .setcpu "6502"
 
         .include "apple2.inc"
+        .include "apple2.mac"
         .include "inc/macros.inc"
         .include "inc/apple2.inc"
         .include "inc/prodos.inc"
         .include "opcodes.inc"
 
 
+zp_sig_addr             := $06
 
 zpproc_addr             := $B0
 zpproc_relay_addr       := $2D0
@@ -304,9 +306,9 @@ break:
         beq     fail
 
         ;; Check for ZP signature - if not found, set it and install.
-        ldx     #2
-:       lda     L23A0,x
-        cmp     $06,x
+        ldx     #sig_len-1
+:       lda     sig,x
+        cmp     zp_sig_addr,x
         bne     set_sig
         dex
         bpl     :-
@@ -317,9 +319,9 @@ break:
 
 fail:   jmp     do_chain
 
-sloop:  lda     L23A0,x
+sloop:  lda     sig,x
 set_sig:
-        sta     $06,x
+        sta     zp_sig_addr,x
         dex
         bpl     sloop
 
@@ -570,7 +572,9 @@ num_banks_minus_one:
         .byte   0
 
 L239F:  .byte   0
-L23A0:  .byte   $C7, $C5, $C2   ; signature sequence ???
+
+sig:    scrcode "GEB"           ; signature sequence - Glen E. Bredon
+        sig_len = * - sig
 
         ;; Volume Directory Header
 .proc vol_dir_header
