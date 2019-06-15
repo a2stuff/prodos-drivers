@@ -1,5 +1,7 @@
 ;;; Disassembly of "RAM.SYSTEM" found on Mouse Desk 2.0 images
 
+;;; Some details c/o http://boutillon.free.fr/Underground/Outils/Ram_Drv_System/Ram_Drv_System.html
+
         .setcpu "6502"
 
         .include "apple2.inc"
@@ -60,9 +62,8 @@ slot:   .byte   3               ; S3D1; could be $B for S3D2
 
         chain_target = $BD00
 
-        saved_org .set *
 .proc chain
-        .org ::chain_target
+        pushorg ::chain_target
 
         ;; Copy path to $280
         ldx     chain_path_orig
@@ -133,9 +134,9 @@ quit:   MLI_CALL QUIT, quit_params
         get_eof_params_ref_num := get_eof_params::ref_num
         get_eof_params_eof := get_eof_params::eof
 
+        poporg
 .endproc
         .assert .sizeof(chain) <= $100, error, "Chain routine must fit in one page"
-        .org (saved_org + .sizeof(chain))
 
 ;;; ============================================================
 ;;; Copy chain code to final location
@@ -342,15 +343,15 @@ L21F0:  sta     ALTZPOFF
         sta     RAMWRTON
         iny
         tya
-:       sta     $0600,y
+:       sta     $0600,y         ; Block 2 - volume dir
         sta     $0700,y
-        sta     $0800,y
+        sta     $0800,y         ; Block 3 - volume dir
         sta     $0900,y
-        sta     $0A00,y
+        sta     $0A00,y         ; Block 4 - volume dir
         sta     $0B00,y
-        sta     $0C00,y
+        sta     $0C00,y         ; Block 5 - volume dir
         sta     $0D00,y
-        sta     $0E00,y
+        sta     $0E00,y         ; Block 6 - volume bitmap
         sta     $0F00,y
         iny
         bne     :-
@@ -515,9 +516,8 @@ do_chain:
 ;;; ============================================================
 ;;; Installed on zero page of each bank at $B0
 
-        saved_org .set *
 .proc zpproc
-        .org ::zpproc_addr
+        pushorg ::zpproc_addr
 
         sta     $E0             ; dst1 hi
         bcs     :+
@@ -559,9 +559,10 @@ do_chain:
         clc
         bit     $02E4
         rts
+
+        poporg
 .endproc
         sizeof_zpproc := .sizeof(zpproc)
-        .org (saved_org + .sizeof(zpproc))
 
 ;;; ============================================================
 
@@ -602,9 +603,8 @@ blocks: .word   0               ; total_blocks
 ;;; Ram Disk Driver - installed at $FF00
 ;;; ============================================================
 
-        saved_org .set *
 .proc driver_src
-        .org ::driver_target
+        pushorg ::driver_target
         driver_start := *
 
 start:  cld                     ; used as a signature
@@ -765,9 +765,9 @@ bank_list:
 
         .byte   0
 
+        poporg
 .endproc
         sizeof_driver := .sizeof(driver_src)
-        .org (saved_org + .sizeof(driver_src))
 
         driver_blocks_lo := driver_src + driver_src::driver_blocks_lo - driver_src::driver_start
         driver_blocks_hi := driver_src + driver_src::driver_blocks_hi - driver_src::driver_start
