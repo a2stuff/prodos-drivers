@@ -1,6 +1,8 @@
 ;;; Disassembly of "RAM.SYSTEM" found on Mouse Desk 2.0 images
-
+;;; Based on Glen E. Bredon's "RAM.DRV.SYSTEM"
 ;;; Some details c/o http://boutillon.free.fr/Underground/Outils/Ram_Drv_System/Ram_Drv_System.html
+;;;
+;;; Modifications to chain to next .SYSTEM file
 
         .setcpu "6502"
 
@@ -16,139 +18,94 @@ zp_sig_addr             := $06
 
 zpproc_addr             := $B0
 zpproc_relay_addr       := $2D0
-chain_path              := $280
 
-driver_target           = $FF00
+PATHNAME                := $280
+
+data_buffer             := $1800 ; I/O when chaining to next SYS file
+driver_target           := $FF00 ; Install location in ProDOS
+
 
 kMaxUsableBanks         = 24    ; Why is this capped so low???
                                 ; (driver has room for another ~20?)
 
-;;; ============================================================
-;;; RamWorks I/O
-
-RWBANK  := $C073
+SYS_ADDR        := $2000        ; Load address for SYS files
+SYS_LEN         = $BF00 - SYS_ADDR ; Maximum SYS file length
 
 ;;; ============================================================
 
-        .org $2000
 
-        jmp     relocate_chain
+        ;; SYS files load at $2000; relocates self to $1000
+        .org SYS_ADDR
+        dst_addr := $1000
 
 ;;; ============================================================
 
-        ;; Interpreter signature
-        .byte   $EE,$EE
+.proc relocate
+        src := SYS_ADDR
+        dst := $1000
 
-        ;; Buffer size
-        .byte   64
+        ldx     #(sys_end - sys_start + $FF) / $100 ; pages
+        ldy     #0
+load:   lda     src,y           ; self-modified
+        load_hi := *-1
+        sta     dst,y           ; self-modified
+        store_hi := *-1
+        iny
+        bne     load
+        inc     load_hi
+        inc     store_hi
+        dex
+        beq     find_self_name  ; done
+        jmp     load
+.endproc
 
-chain_path_orig:
-        PASCAL_STRING "/MOUSE.DESK/MD.SYSTEM", 63
 
-        .byte   $FF, $FF
+;;; ============================================================
+;;; Start of relocated code
+sys_start:
 
+;;; ============================================================
 ;;; Configuration Parameters
 
-banks_to_reserve:  .byte   0      ; banks to reserve (e.g. for AppleWorks)
+banks_to_reserve:  .byte   0  ; banks to reserve (e.g. for AppleWorks)
 
-slot:   .byte   3               ; S3D1; could be $B for S3D2
-
+slot:   .byte   3             ; S3D1; could be $B for S3D2
 
 ;;; ============================================================
-;;; Chain to the next system file (path above)
-;;; ============================================================
-;;;
-;;; Relocated to $BD00 to leave room at $2000 for the sys file.
+;;; Identify the name of this SYS file, which should be present at
+;;; $280 with or without a path prefix. This is used when searching
+;;; for the next .SYSTEM file to execute.
 
-        chain_target = $BD00
+.proc find_self_name
+        ;; Search pathname buffer backwards for '/', then
+        ;; copy name into |self_name|; this is used later
+        ;; to find/invoke the next .SYSTEM file.
 
-.proc chain
-        pushorg ::chain_target
-
-        ;; Copy path to $280
-        ldx     chain_path_orig
-        beq     quit
-:       lda     chain_path_orig,x
-        sta     chain_path,x
+        ;; Find '/' (which may not be present, prefix is optional)
+        lda     #0
+        sta     $A8
+        ldx     PATHNAME
+        beq     install_driver
+floop:  inc     $A8
         dex
-        bpl     :-
+        beq     copy_name
+        lda     PATHNAME,x
+        eor     #'/'
+        asl     a
+        bne     floop
 
-        MLI_CALL GET_FILE_INFO, get_file_info_params
-        bcs     quit
-
-        ldx     get_file_info_params_file_type
+        ;; Copy name into |self_name| buffer
+copy_name:
+        ldy     #0
+cloop:  iny
         inx
-        bne     quit
-        MLI_CALL OPEN, open_params
-        bcs     close
-        lda     open_params_ref_num
-        sta     read_params_ref_num
-        sta     get_eof_params_ref_num
-
-        MLI_CALL GET_EOF, get_eof_params
-        bcs     close
-
-        ;; Ensure there is room for chained file
-        lda     get_eof_params_eof+2
-        bne     close
-        lda     get_eof_params_eof+1
-        cmp     #$98            ; $2000+$97FF=$B7FF (have up to $BF00)
-        bcs     close
-        sta     read_params_request_count+1
-        lda     get_eof_params_eof
-        sta     read_params_request_count
-
-        ;; Read
-        MLI_CALL READ, read_params
-        bcs     close
-
-        ;; Close
-        MLI_CALL CLOSE, close_params
-        bcs     close
-
-        ;; Invoke it
-        jmp     sys_target
-
-close:  MLI_CALL CLOSE, close_params
-
-quit:   MLI_CALL QUIT, quit_params
-
-        DEFINE_QUIT_PARAMS quit_params
-
-        sys_target      := $2000
-        io_buff         := $1C00
-
-        DEFINE_GET_FILE_INFO_PARAMS get_file_info_params, chain_path
-        get_file_info_params_file_type := get_file_info_params::file_type
-
-        DEFINE_OPEN_PARAMS open_params, chain_path, io_buff
-        open_params_ref_num := open_params::ref_num
-
-        DEFINE_CLOSE_PARAMS close_params
-
-        DEFINE_READ_PARAMS read_params, sys_target, 0
-        read_params_ref_num := read_params::ref_num
-        read_params_request_count := read_params::request_count
-
-        DEFINE_GET_EOF_PARAMS get_eof_params
-        get_eof_params_ref_num := get_eof_params::ref_num
-        get_eof_params_eof := get_eof_params::eof
-
-        poporg
+        lda     PATHNAME,x
+        sta     self_name,y
+        cpy     $A8
+        bcc     cloop
+        sty     self_name
 .endproc
-        .assert .sizeof(chain) <= $100, error, "Chain routine must fit in one page"
-
-;;; ============================================================
-;;; Copy chain code to final location
-
-.proc relocate_chain
-        ldy     #$00
-:       lda     chain,y
-        sta     chain_target,y
-        iny
-        bne     :-
-        ;; fall through
-.endproc
+        ;; Fall through...
 
 ;;; ============================================================
 ;;; Install the driver
@@ -157,7 +114,7 @@ quit:   MLI_CALL QUIT, quit_params
 
         sta     CLR80COL
         ldy     #0
-        sty     RWBANK
+        sty     BANKSEL
         sta     ALTZPON         ; Use ZP to probe banks
 
         ;; Clear map1 / map2 (256 bytes) to $FF
@@ -167,7 +124,7 @@ quit:   MLI_CALL QUIT, quit_params
         bne     :-
 
         ;; Stash first two bytes of each bank (128 possible banks)
-:       sty     RWBANK
+:       sty     BANKSEL
         lda     $00
         sta     stash_00,y
         lda     $01
@@ -177,7 +134,7 @@ quit:   MLI_CALL QUIT, quit_params
         dey
 
         ;; Write bank num/complement at $0/$1
-:       sty     RWBANK
+:       sty     BANKSEL
         sty     $00
         tya
         eor     #$FF
@@ -188,7 +145,7 @@ quit:   MLI_CALL QUIT, quit_params
         ;; Y = 0
 
         ;; Reset signature bytes on main/aux banks
-        sty     RWBANK
+        sty     BANKSEL
         sty     $00
         sty     $01
         sta     ALTZPOFF
@@ -205,7 +162,7 @@ quit:   MLI_CALL QUIT, quit_params
         ldy     #1
 bank_loop:
         ;; Check bank for signature bytes (bank num/complement at $0/$1)
-        sty     RWBANK
+        sty     BANKSEL
         cpy     $00
         bne     next_bank
         tya
@@ -250,7 +207,7 @@ loop0:  lda     map2-1,y
         bmi     :+
         cmp     first_used_bank
         beq     :+
-        sta     RWBANK
+        sta     BANKSEL
         lda     stash_00-1,y
         sta     $00
         lda     stash_01-1,y
@@ -259,7 +216,7 @@ loop0:  lda     map2-1,y
         bne     loop0
 
         ;; Y = 0
-        sty     RWBANK
+        sty     BANKSEL
         sty     $00
 
         ;; Count number of available banks, and populate
@@ -302,7 +259,7 @@ break:
         sta     driver_blocks_hi
 
         lda     driver_bank_list
-        sta     RWBANK
+        sta     BANKSEL
         lda     $00
         beq     fail
 
@@ -409,7 +366,7 @@ do_install:
         lda     #0
         sta     RAMWRTOFF
         sta     ALTZPOFF
-        sta     RWBANK
+        sta     BANKSEL
         bit     LCBANK1
         bit     LCBANK1
 
@@ -503,15 +460,15 @@ finish: bit     ROMIN2
         bcc     do_chain
         copy    #$FF, L239F
         sta     ALTZPON
-        copy    driver_bank_list, RWBANK
+        copy    driver_bank_list, BANKSEL
         stx     $06
-        stx     RWBANK
+        stx     BANKSEL
         stx     vol_dir_header+VolumeDirectoryHeader::total_blocks
         jmp     install_driver  ; retry???
 
 do_chain:
         sta     ALTZPOFF
-        jmp     chain_target
+        jmp     launch_next_sys_file
 
 ;;; ============================================================
 ;;; Installed on zero page of each bank at $B0
@@ -742,13 +699,13 @@ bank_list:
         .res    ::kMaxUsableBanks, 0
 
 .proc zpproc_relay
-        sta     RWBANK
+        sta     BANKSEL
 
         patch_loc1 := *+1
         lda     #$00
         sta     ALTZPON
         jsr     zpproc_addr
-        sty     RWBANK
+        sty     BANKSEL
         bmi     :+
         sta     ALTZPOFF
 :       rts
@@ -774,11 +731,318 @@ bank_list:
         driver_block_x   := driver_src + driver_src::driver_block_x   - driver_src::driver_start
         driver_bank_list := driver_src + driver_src::bank_list        - driver_src::driver_start
 
+;;; ============================================================
+;;; Find and invoke the next .SYSTEM file
+
+.proc launch_next_sys_file
+        ;; Update reset vector - now terminates.
+        lda     #<quit
+        sta     $03F2
+        lda     #>quit
+        sta     $03F3
+        eor     #$A5
+        sta     $03F4
+
+        ptr := $A5
+        num := $A7
+        len := $A8
+
+        lda     DEVNUM          ; stick with most recent device
+        sta     read_block_params_unit_num
+        jsr     read_block
+
+        lda     data_buffer + VolumeDirectoryBlockHeader::entry_length
+        sta     entry_length_mod
+        lda     data_buffer + VolumeDirectoryBlockHeader::entries_per_block
+        sta     entries_per_block_mod
+        lda     #1
+        sta     num
+
+        lda     #<(data_buffer + VolumeDirectoryBlockHeader::header_length)
+        sta     ptr
+        lda     #>(data_buffer + VolumeDirectoryBlockHeader::header_length)
+        sta     ptr+1
+
+        ;; Process directory entry
+entry:  ldy     #FileEntry::file_type      ; file_type
+        lda     (ptr),y
+        cmp     #$FF            ; type=SYS
+        bne     next
+        ldy     #FileEntry::storage_type_name_length
+        lda     (ptr),y
+        and     #$30            ; regular file (not directory, pascal)
+        beq     next
+        lda     (ptr),y
+        and     #$0F            ; name_length
+        sta     len
+        tay
+
+        ;; Compare suffix - is it .SYSTEM?
+        ldx     suffix
+:       lda     (ptr),y
+        cmp     suffix+1,x
+        bne     next
+        dey
+        dex
+        bpl     :-
+
+        ;; Yes; is it *this* .SYSTEM file?
+        ldy     self_name
+        cpy     len
+        bne     handle_sys_file
+:       lda     (ptr),y
+        cmp     self_name,y
+        bne     handle_sys_file
+        dey
+        bne     :-
+        sec
+        ror     found_self_flag
+
+        ;; Move to the next entry
+next:   lda     ptr
+        clc
+        adc     #$27            ; self-modified: entry_length
+        entry_length_mod := *-1
+        sta     ptr
+        bcc     :+
+        inc     ptr+1
+:       inc     num
+        lda     num
+        cmp     #$0D            ; self-modified: entries_per_block
+        entries_per_block_mod := *-1
+        bcc     entry
+
+        lda     data_buffer + VolumeDirectoryBlockHeader::next_block
+        sta     read_block_params_block_num
+        lda     data_buffer + VolumeDirectoryBlockHeader::next_block + 1
+        sta     read_block_params_block_num+1
+        ora     read_block_params_block_num
+        beq     not_found       ; last block has next=0
+        jsr     read_block
+        lda     #0
+        sta     num
+        lda     #<(data_buffer + $04)
+        sta     ptr
+        lda     #>(data_buffer + $04)
+        sta     ptr+1
+        jmp     entry
+
+        ;; Found a .SYSTEM file which is not this one; invoke
+        ;; it if follows this one.
+handle_sys_file:
+        bit     found_self_flag
+        bpl     next
+
+        ;; Compose the path to invoke. First walk self path
+        ;; backwards to '/'.
+        ldx     PATHNAME
+        beq     append
+:       dex
+        beq     append
+        lda     PATHNAME,x
+        eor     #'/'
+        asl     a
+        bne     :-
+
+        ;; Now append name of found file.
+append: ldy     #0
+:       iny
+        inx
+        lda     (ptr),y
+        sta     PATHNAME,x
+        cpy     len
+        bcc     :-
+        stx     PATHNAME
+        jmp     invoke_system_file
+
+not_found:
+        jsr     zstrout
+        scrcode "\r\r\r* Unable to find next '.SYSTEM' file *\r"
+        bit     KBDSTRB
+:       lda     KBD
+        bpl     :-
+        bit     KBDSTRB
+        jmp     quit
+.endproc
+
+;;; ------------------------------------------------------------
+;;; Output a high-ascii, null-terminated string.
+;;; String immediately follows the JSR.
+
+.proc zstrout
+        ptr := $A5
+
+        pla                     ; read address from stack
+        sta     ptr
+        pla
+        sta     ptr+1
+        bne     skip            ; always (since data not on ZP)
+
+next:   cmp     #'a'|$80        ; lower-case?
+        bcc     :+
+        and     lowercase_mask  ; make upper-case if needed
+:       jsr     COUT
+skip:   inc     ptr
+        bne     :+
+        inc     ptr+1
+:       ldy     #0
+        lda     (ptr),y
+        bne     next
+
+        lda     ptr+1           ; restore address to stack
+        pha
+        lda     ptr
+        pha
+        rts
+.endproc
+
+;;; ------------------------------------------------------------
+;;; COUT a 2-digit number in A
+
+.proc cout_number
+        ldx     #'0'|$80
+        cmp     #10             ; >= 10?
+        bcc     tens
+
+        ;; divide by 10, dividend(+'0') in x remainder in a
+:       sbc     #10
+        inx
+        cmp     #10
+        bcs     :-
+
+tens:   pha
+        cpx     #'0'|$80
+        beq     units
+        txa
+        jsr     COUT
+
+units:  pla
+        ora     #'0'|$80
+        jsr     COUT
+        rts
+.endproc
+
+;;; ------------------------------------------------------------
+
+lowercase_mask:
+        .byte   $FF             ; Set to $DF on systems w/o lower-case
+
+;;; ------------------------------------------------------------
+;;; Invoke ProDOS QUIT routine.
+
+.proc quit
+        MLI_CALL QUIT, quit_params
+        .byte   0               ; crash if QUIT fails
+        rts
+
+.proc quit_params
+        .byte   4               ; param_count
+        .byte   0               ; quit_type
+        .word   0000            ; reserved
+        .byte   0               ; reserved
+        .word   0000            ; reserved
+.endproc
+.endproc
+
+;;; ------------------------------------------------------------
+;;; Read a disk block.
+
+.proc read_block
+        MLI_CALL READ_BLOCK, read_block_params
+        bcs     on_error
+        rts
+.endproc
+
+.proc read_block_params
+        .byte   3               ; param_count
+unit_num:  .byte   $60          ; unit_num
+        .addr   data_buffer     ; data_buffer
+block_num: .word   2            ; block_num - block 2 is volume directory
+.endproc
+        read_block_params_unit_num := read_block_params::unit_num
+        read_block_params_block_num := read_block_params::block_num
+
+;;; ------------------------------------------------------------
+;;; Load/execute the system file in PATHNAME
+
+.proc invoke_system_file
+        MLI_CALL OPEN, open_params
+        bcs     on_error
+
+        lda     open_params_ref_num
+        sta     read_params_ref_num
+
+        MLI_CALL READ, read_params
+        bcs     on_error
+
+        MLI_CALL CLOSE, close_params
+        bcs     on_error
+
+        jmp     SYS_ADDR        ; Invoke loaded SYSTEM file
+.endproc
+
+;;; ------------------------------------------------------------
+;;; Error handler - invoked if any ProDOS error occurs.
+
+.proc on_error
+        pha
+        jsr     zstrout
+        scrcode "\r\r\r**  Disk Error $"
+        pla
+        jsr     PRBYTE
+        jsr     zstrout
+        scrcode "  **\r"
+        bit     KBDSTRB
+:       lda     KBD
+        bpl     :-
+        bit     KBDSTRB
+        jmp     quit
+.endproc
+
+;;; ------------------------------------------------------------
+
+.proc open_params
+        .byte   3               ; param_count
+        .addr   PATHNAME        ; pathname
+        .addr   data_buffer     ; io_buffer
+ref_num:.byte   1               ; ref_num
+.endproc
+        open_params_ref_num := open_params::ref_num
+
+.proc read_params
+        .byte   4               ; param_count
+ref_num:.byte   1               ; ref_num
+        .addr   SYS_ADDR        ; data_buffer
+        .word   SYS_LEN         ; request_count
+        .word   0               ; trans_count
+.endproc
+        read_params_ref_num := read_params::ref_num
+
+.proc close_params
+        .byte   1               ; param_count
+ref_num:.byte   0               ; ref_num
+.endproc
+
+;;; ============================================================
+;;; Data
+
+suffix:
+        PASCAL_STRING ".SYSTEM"
+
+found_self_flag:
+        .byte   0
+
+;;; ============================================================
+;;; End of relocated code
+sys_end:
+
+;;; ============================================================
 ;;; Scratch space beyond code used during install
 
 reserved_banks  := *
 first_used_bank := *+1
-map1            := *+2
-map2            := *+2+$80
-stash_00        := *+2+$100
-stash_01        := *+2+$180
+map1            := *+2          ; len: $80
+map2            := *+2+$80      ; len: $80
+stash_00        := *+2+$100     ; len: $80
+stash_01        := *+2+$180     ; len: $80
+self_name       := *+2+$200     ; len: 65

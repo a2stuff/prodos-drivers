@@ -135,6 +135,15 @@ ERR_NETWORK_ERROR     = $88
 STORAGE_TYPE_MASK       = $F0
 NAME_LENGTH_MASK        = $0F
 
+;;; Volume Directory Block Header structure
+.scope VolumeDirectoryBlockHeader
+        prev_block              := $00
+        next_block              := $02
+        entry_length            := $23
+        entries_per_block       := $24
+        header_length           := $2B
+.endscope
+
 ;;; Volume Directory Header structure
 .struct VolumeDirectoryHeader
         prev_block      .word
