@@ -7,7 +7,7 @@ OUTDIR = out
 
 HEADERS = $(wildcard inc/*.inc)
 
-TARGETS = $(OUTDIR)/ram.system.SYS
+TARGETS = $(OUTDIR)/ram.drv.system.SYS
 
 .PHONY: clean all
 all: $(OUTDIR) $(TARGETS)

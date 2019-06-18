@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Run this from the ram.system directory
+# Run this from the ram.drv.system directory
 
 set -e
 source "res/util.sh"
@@ -15,4 +15,4 @@ function verify {
 #do_make clean
 do_make all
 
-verify "RAM.SYSTEM.SYS" "ram.system.SYS"
+verify "RAM.SYSTEM.SYS" "ram.drv.system.SYS"

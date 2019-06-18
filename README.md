@@ -1,6 +1,7 @@
 # Disassembly of Glen E. Bredon's `RAM.DRV.SYSTEM` for the Apple II
 
-This was started before realizing what the origin of the `RAM.SYSTEM` file was.
+This was started before realizing what the origin of the `RAM.SYSTEM`
+found on a MouseDesk 2.0 disk image file was.
 
 There is a more complete diassembly with commentary at:
 
