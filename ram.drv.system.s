@@ -2,7 +2,10 @@
 ;;; Based on Glen E. Bredon's "RAM.DRV.SYSTEM"
 ;;; Some details c/o http://boutillon.free.fr/Underground/Outils/Ram_Drv_System/Ram_Drv_System.html
 ;;;
-;;; Modifications to chain to next .SYSTEM file
+;;; Modifications:
+;;;   * Chain to next .SYSTEM file dynamically
+
+        .feature string_escapes
 
         .setcpu "6502"
 
@@ -21,18 +24,19 @@ zpproc_relay_addr       := $2D0
 
 PATHNAME                := $280
 
-data_buffer             := $1800 ; I/O when chaining to next SYS file
+data_buf                := $1C00 ; I/O when chaining to next SYS file
 driver_target           := $FF00 ; Install location in ProDOS
 
 
 kMaxUsableBanks         = 24    ; Why is this capped so low???
                                 ; (driver has room for another ~20?)
 
-SYS_ADDR        := $2000        ; Load address for SYS files
+SYS_ADDR        := $2000           ; Load address for SYS files
 SYS_LEN         = $BF00 - SYS_ADDR ; Maximum SYS file length
 
-;;; ============================================================
+        .define PRODUCT "RAMWorks RAM Disk"
 
+;;; ============================================================
 
         ;; SYS files load at $2000; relocates self to $1000
         .org SYS_ADDR
@@ -42,70 +46,41 @@ SYS_LEN         = $BF00 - SYS_ADDR ; Maximum SYS file length
 
 .proc relocate
         src := SYS_ADDR
-        dst := $1000
 
         ldx     #(sys_end - sys_start + $FF) / $100 ; pages
         ldy     #0
-load:   lda     src,y           ; self-modified
+load:   lda     sys_start,y           ; self-modified
         load_hi := *-1
-        sta     dst,y           ; self-modified
+        sta     dst_addr,y      ; self-modified
         store_hi := *-1
         iny
         bne     load
         inc     load_hi
         inc     store_hi
         dex
-        beq     find_self_name  ; done
-        jmp     load
+        bne     load
+
+        jmp     dst_addr
 .endproc
 
 
 ;;; ============================================================
 ;;; Start of relocated code
 sys_start:
+        pushorg dst_addr
+
+        ;; Save most recent device for later, when chaining
+        ;; to next .SYSTEM file.
+        lda     DEVNUM
+        sta     read_block_params_unit_num
+
+        jmp     install_driver
 
 ;;; ============================================================
 ;;; Configuration Parameters
 
-banks_to_reserve:  .byte   0  ; banks to reserve (e.g. for AppleWorks)
-
-slot:   .byte   3             ; S3D1; could be $B for S3D2
-
-;;; ============================================================
-;;; Identify the name of this SYS file, which should be present at
-;;; $280 with or without a path prefix. This is used when searching
-;;; for the next .SYSTEM file to execute.
-
-.proc find_self_name
-        ;; Search pathname buffer backwards for '/', then
-        ;; copy name into |self_name|; this is used later
-        ;; to find/invoke the next .SYSTEM file.
-
-        ;; Find '/' (which may not be present, prefix is optional)
-        lda     #0
-        sta     $A8
-        ldx     PATHNAME
-        beq     install_driver
-floop:  inc     $A8
-        dex
-        beq     copy_name
-        lda     PATHNAME,x
-        eor     #'/'
-        asl     a
-        bne     floop
-
-        ;; Copy name into |self_name| buffer
-copy_name:
-        ldy     #0
-cloop:  iny
-        inx
-        lda     PATHNAME,x
-        sta     self_name,y
-        cpy     $A8
-        bcc     cloop
-        sty     self_name
-.endproc
-        ;; Fall through...
+banks_to_reserve:       .byte   0       ; banks to reserve (e.g. for AppleWorks)
+unitnum:                .byte   $03     ; S3D1; could be $B for S3D2
 
 ;;; ============================================================
 ;;; Install the driver
@@ -275,7 +250,7 @@ break:
         bmi     L21F0
         jmp     do_install
 
-fail:   jmp     do_chain
+fail:   jmp     install_failure
 
 sloop:  lda     sig,x
 set_sig:
@@ -389,14 +364,14 @@ copy_driver:
         cpy     #sizeof_driver
         bcc     :-
 
-        ;; Check if slot already has a device
+        ;; Check if unitnum already has a device
         ldy     DEVCNT
 :       lda     DEVLST,y
         lsr     a
         lsr     a
         lsr     a
         lsr     a
-        cmp     slot
+        cmp     unitnum
         beq     install_device
         dey
         bpl     :-
@@ -412,7 +387,7 @@ copy_driver:
         ;; Install device in ProDOS via DEVLST/DEVADR.
         ;; (Y has index in DEVLST)
 install_device:
-        lda     slot
+        lda     unitnum
         asl     a
         tax
         asl     a
@@ -424,7 +399,7 @@ install_device:
         copy16  #(driver_target+1), DEVADR,x
 
         ;; Did we install into S3D2?
-        lda     slot
+        lda     unitnum
         cmp     #$0B            ; Slot 3 Drive 2
         beq     finish
 
@@ -456,8 +431,8 @@ finish: bit     ROMIN2
         ldx     #$00
         lda     on_line_params_buffer
         ora     L239F
-        bne     do_chain
-        bcc     do_chain
+        bne     install_success
+        bcc     install_success
         copy    #$FF, L239F
         sta     ALTZPON
         copy    driver_bank_list, BANKSEL
@@ -466,8 +441,24 @@ finish: bit     ROMIN2
         stx     vol_dir_header+VolumeDirectoryHeader::total_blocks
         jmp     install_driver  ; retry???
 
-do_chain:
+install_success:
         sta     ALTZPOFF
+
+        jsr     HOME
+        jsr     zstrout
+        scrcode "\r\r\r", PRODUCT, " - Installed"
+        .byte   0
+
+        jmp     launch_next_sys_file
+
+install_failure:
+        sta     ALTZPOFF
+
+        jsr     HOME
+        jsr     zstrout
+        scrcode "\r\r\r", PRODUCT, " - Not Installed"
+        .byte   0
+
         jmp     launch_next_sys_file
 
 ;;; ============================================================
@@ -735,6 +726,11 @@ bank_list:
 ;;; Find and invoke the next .SYSTEM file
 
 .proc launch_next_sys_file
+        ptr := $A5
+        num := $A7
+        len := $A8
+
+        ;; --------------------------------------------------
         ;; Update reset vector - now terminates.
         lda     #<quit
         sta     $03F2
@@ -743,24 +739,51 @@ bank_list:
         eor     #$A5
         sta     $03F4
 
-        ptr := $A5
-        num := $A7
-        len := $A8
+        ;; --------------------------------------------------
+        ;; Identify the name of this SYS file, which should be present at
+        ;; $280 with or without a path prefix. Search pathname buffer
+        ;; backwards for '/', then copy name into |self_name|.
 
-        lda     DEVNUM          ; stick with most recent device
-        sta     read_block_params_unit_num
+        ;; Find '/' (which may not be present, prefix is optional)
+        lda     #0
+        sta     len
+        ldx     PATHNAME
+        beq     read_dir
+floop:  inc     len
+        dex
+        beq     copy_name
+        lda     PATHNAME,x
+        eor     #'/'
+        asl     a
+        bne     floop
+
+        ;; Copy name into |self_name| buffer
+copy_name:
+        ldy     #0
+cloop:  iny
+        inx
+        lda     PATHNAME,x
+        sta     self_name,y
+        cpy     len
+        bcc     cloop
+        sty     self_name
+
+        ;; --------------------------------------------------
+        ;; Read directory and look for .SYSTEM files; find this
+        ;; one, and invoke the following one.
+read_dir:
         jsr     read_block
 
-        lda     data_buffer + VolumeDirectoryBlockHeader::entry_length
+        lda     data_buf + VolumeDirectoryHeader::entry_length
         sta     entry_length_mod
-        lda     data_buffer + VolumeDirectoryBlockHeader::entries_per_block
+        lda     data_buf + VolumeDirectoryHeader::entries_per_block
         sta     entries_per_block_mod
         lda     #1
         sta     num
 
-        lda     #<(data_buffer + VolumeDirectoryBlockHeader::header_length)
+        lda     #<(data_buf + .sizeof(VolumeDirectoryHeader))
         sta     ptr
-        lda     #>(data_buffer + VolumeDirectoryBlockHeader::header_length)
+        lda     #>(data_buf + .sizeof(VolumeDirectoryHeader))
         sta     ptr+1
 
         ;; Process directory entry
@@ -780,11 +803,11 @@ entry:  ldy     #FileEntry::file_type      ; file_type
         ;; Compare suffix - is it .SYSTEM?
         ldx     suffix
 :       lda     (ptr),y
-        cmp     suffix+1,x
+        cmp     suffix,x
         bne     next
         dey
         dex
-        bpl     :-
+        bne     :-
 
         ;; Yes; is it *this* .SYSTEM file?
         ldy     self_name
@@ -812,18 +835,18 @@ next:   lda     ptr
         entries_per_block_mod := *-1
         bcc     entry
 
-        lda     data_buffer + VolumeDirectoryBlockHeader::next_block
+        lda     data_buf + VolumeDirectoryHeader::next_block
         sta     read_block_params_block_num
-        lda     data_buffer + VolumeDirectoryBlockHeader::next_block + 1
+        lda     data_buf + VolumeDirectoryHeader::next_block + 1
         sta     read_block_params_block_num+1
         ora     read_block_params_block_num
         beq     not_found       ; last block has next=0
         jsr     read_block
         lda     #0
         sta     num
-        lda     #<(data_buffer + $04)
+        lda     #<(data_buf + $04)
         sta     ptr
-        lda     #>(data_buffer + $04)
+        lda     #>(data_buf + $04)
         sta     ptr+1
         jmp     entry
 
@@ -857,7 +880,9 @@ append: ldy     #0
 
 not_found:
         jsr     zstrout
-        scrcode "\r\r\r* Unable to find next '.SYSTEM' file *\r"
+        scrcode "\r\r* Unable to find next '.SYSTEM' file *\r"
+        .byte   0
+
         bit     KBDSTRB
 :       lda     KBD
         bpl     :-
@@ -935,13 +960,7 @@ lowercase_mask:
         .byte   0               ; crash if QUIT fails
         rts
 
-.proc quit_params
-        .byte   4               ; param_count
-        .byte   0               ; quit_type
-        .word   0000            ; reserved
-        .byte   0               ; reserved
-        .word   0000            ; reserved
-.endproc
+        DEFINE_QUIT_PARAMS quit_params
 .endproc
 
 ;;; ------------------------------------------------------------
@@ -953,12 +972,8 @@ lowercase_mask:
         rts
 .endproc
 
-.proc read_block_params
-        .byte   3               ; param_count
-unit_num:  .byte   $60          ; unit_num
-        .addr   data_buffer     ; data_buffer
-block_num: .word   2            ; block_num - block 2 is volume directory
-.endproc
+        ;; block 2 is volume directory
+        DEFINE_READ_BLOCK_PARAMS read_block_params, data_buf, 2
         read_block_params_unit_num := read_block_params::unit_num
         read_block_params_block_num := read_block_params::block_num
 
@@ -987,11 +1002,16 @@ block_num: .word   2            ; block_num - block 2 is volume directory
 .proc on_error
         pha
         jsr     zstrout
-        scrcode "\r\r\r**  Disk Error $"
+        scrcode "\r\r*  Disk Error $"
+        .byte   0
+
         pla
         jsr     PRBYTE
+
         jsr     zstrout
-        scrcode "  **\r"
+        scrcode "  *\r"
+        .byte   0
+
         bit     KBDSTRB
 :       lda     KBD
         bpl     :-
@@ -1001,27 +1021,13 @@ block_num: .word   2            ; block_num - block 2 is volume directory
 
 ;;; ------------------------------------------------------------
 
-.proc open_params
-        .byte   3               ; param_count
-        .addr   PATHNAME        ; pathname
-        .addr   data_buffer     ; io_buffer
-ref_num:.byte   1               ; ref_num
-.endproc
+        DEFINE_OPEN_PARAMS open_params, PATHNAME, data_buf
         open_params_ref_num := open_params::ref_num
 
-.proc read_params
-        .byte   4               ; param_count
-ref_num:.byte   1               ; ref_num
-        .addr   SYS_ADDR        ; data_buffer
-        .word   SYS_LEN         ; request_count
-        .word   0               ; trans_count
-.endproc
+        DEFINE_READ_PARAMS read_params, SYS_ADDR, SYS_LEN
         read_params_ref_num := read_params::ref_num
 
-.proc close_params
-        .byte   1               ; param_count
-ref_num:.byte   0               ; ref_num
-.endproc
+        DEFINE_CLOSE_PARAMS close_params
 
 ;;; ============================================================
 ;;; Data
@@ -1032,9 +1038,6 @@ suffix:
 found_self_flag:
         .byte   0
 
-;;; ============================================================
-;;; End of relocated code
-sys_end:
 
 ;;; ============================================================
 ;;; Scratch space beyond code used during install
@@ -1046,3 +1049,10 @@ map2            := *+2+$80      ; len: $80
 stash_00        := *+2+$100     ; len: $80
 stash_01        := *+2+$180     ; len: $80
 self_name       := *+2+$200     ; len: 65
+
+        .assert self_name + 64 < data_buf, error, "Too long"
+
+;;; ============================================================
+;;; End of relocated code
+        poporg
+sys_end:

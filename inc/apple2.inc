@@ -29,5 +29,6 @@ ROMIN2          := $C082
 ;;; Monitor ROM routines
 ;;; ============================================================
 
+HOME            := $FC58
 PRBYTE          := $FDDA
 COUT            := $FDED
