@@ -17,25 +17,6 @@
         .include "opcodes.inc"
 
 
-zp_sig_addr             := $06
-
-zpproc_addr             := $B0
-zpproc_relay_addr       := $2D0
-
-PATHNAME                := $280
-
-data_buf                := $1C00 ; I/O when chaining to next SYS file
-driver_target           := $FF00 ; Install location in ProDOS
-
-
-kMaxUsableBanks         = 24    ; Why is this capped so low???
-                                ; (driver has room for another ~20?)
-
-SYS_ADDR        := $2000           ; Load address for SYS files
-SYS_LEN         = $BF00 - SYS_ADDR ; Maximum SYS file length
-
-        .define PRODUCT "RAMWorks RAM Disk"
-
 ;;; ============================================================
 
         ;; SYS files load at $2000; relocates self to $1000
@@ -92,10 +73,12 @@ sys_start:
         ;; Save most recent device for later, when chaining
         ;; to next .SYSTEM file.
         lda     DEVNUM
-        sta     read_block_params_unit_num
+        sta     devnum
         rts
 .endproc
 
+devnum:         .byte   0
+self_name:      .res    16
 
 ;;; ============================================================
 ;;; Find and invoke the next .SYSTEM file
@@ -149,6 +132,8 @@ cloop:  iny
         ;; Read directory and look for .SYSTEM files; find this
         ;; one, and invoke the following one.
 read_dir:
+        lda     devnum
+        sta     read_block_params_unit_num
         jsr     read_block
 
         lda     data_buf + VolumeDirectoryHeader::entry_length
@@ -362,6 +347,20 @@ found_self_flag:
 
 ;;; ============================================================
 ;;; Configuration Parameters
+
+        .define PRODUCT "RAMWorks RAM Disk"
+
+zp_sig_addr             := $06
+
+zpproc_addr             := $B0
+zpproc_relay_addr       := $2D0
+
+data_buf                := $1C00 ; I/O when chaining to next SYS file
+driver_target           := $FF00 ; Install location in ProDOS
+
+
+kMaxUsableBanks         = 24    ; Why is this capped so low???
+                                ; (driver has room for another ~20?)
 
 banks_to_reserve:       .byte   0       ; banks to reserve (e.g. for AppleWorks)
 unitnum:                .byte   $03     ; S3D1; could be $B for S3D2
@@ -1055,9 +1054,8 @@ map1            := *+2          ; len: $80
 map2            := *+2+$80      ; len: $80
 stash_00        := *+2+$100     ; len: $80
 stash_01        := *+2+$180     ; len: $80
-self_name       := *+2+$200     ; len: 65
 
-        .assert self_name + 64 < data_buf, error, "Too long"
+        .assert stash_01+$80 < data_buf, error, "Too long"
 
 ;;; ============================================================
 ;;; End of relocated code

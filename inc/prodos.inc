@@ -29,6 +29,10 @@ SELECTOR        := $D100
 
 BLOCK_SIZE      = $200
 
+PATHNAME        := $280
+SYS_ADDR        := $2000           ; Load address for SYS files
+SYS_LEN         = $BF00 - SYS_ADDR ; Maximum SYS file length
+
 ;;; ============================================================
 ;;; MLI Calls
 ;;; ============================================================
