@@ -70,10 +70,48 @@ sys_start:
 ;;; ============================================================
 
 .proc setup
+        ;; --------------------------------------------------
         ;; Save most recent device for later, when chaining
         ;; to next .SYSTEM file.
         lda     DEVNUM
         sta     devnum
+
+        ;; --------------------------------------------------
+        ;; Identify the name of this SYS file, which should be present at
+        ;; $280 with or without a path prefix. Search pathname buffer
+        ;; backwards for '/', then copy name into |self_name|.
+
+        ;; Find '/' (which may not be present, prefix is optional)
+        ldx     PATHNAME
+        beq     no_name
+        ldy     #0              ; Y = length
+:       lda     PATHNAME,x
+        and     #$7f            ; ignore high bit
+        cmp     #'/'
+        beq     copy_name
+        iny
+        dex
+        bne     :-
+
+        ;; Copy name into |self_name| buffer
+copy_name:
+        cpy     #0
+        beq     no_name
+        sty     self_name
+
+        ldx     PATHNAME
+:       lda     PATHNAME,x
+        sta     self_name,y
+        dex
+        dey
+        bne     :-
+
+        ;; Done
+        rts
+
+no_name:
+        lda     #0
+        sta     self_name
         rts
 .endproc
 
@@ -84,49 +122,22 @@ self_name:      .res    16
 ;;; Find and invoke the next .SYSTEM file
 ;;; ============================================================
 
-.proc launch_next
+.proc quit
+        MLI_CALL QUIT, quit_params
+        .byte   0               ; crash if QUIT fails
 
+        DEFINE_QUIT_PARAMS quit_params
+.endproc
+
+.proc launch_next
         ptr := $A5
         num := $A7
         len := $A8
 
         ;; --------------------------------------------------
-        ;; Update reset vector - now terminates.
-        lda     #<quit
-        sta     $03F2
-        lda     #>quit
-        sta     $03F3
-        eor     #$A5
-        sta     $03F4
-
-        ;; --------------------------------------------------
-        ;; Identify the name of this SYS file, which should be present at
-        ;; $280 with or without a path prefix. Search pathname buffer
-        ;; backwards for '/', then copy name into |self_name|.
-
-        ;; Find '/' (which may not be present, prefix is optional)
-        lda     #0
-        sta     len
-        ldx     PATHNAME
-        beq     read_dir
-floop:  inc     len
-        dex
-        beq     copy_name
-        lda     PATHNAME,x
-        eor     #'/'
-        asl     a
-        bne     floop
-
-        ;; Copy name into |self_name| buffer
-copy_name:
-        ldy     #0
-cloop:  iny
-        inx
-        lda     PATHNAME,x
-        sta     self_name,y
-        cpy     len
-        bcc     cloop
-        sty     self_name
+        ;; Own name found? If not, just quit
+        lda     self_name
+        beq     quit
 
         ;; --------------------------------------------------
         ;; Read directory and look for .SYSTEM files; find this
@@ -250,17 +261,6 @@ not_found:
         bpl     :-
         bit     KBDSTRB
         jmp     quit
-.endproc
-
-;;; ------------------------------------------------------------
-;;; Invoke ProDOS QUIT routine.
-
-.proc quit
-        MLI_CALL QUIT, quit_params
-        .byte   0               ; crash if QUIT fails
-        rts
-
-        DEFINE_QUIT_PARAMS quit_params
 .endproc
 
 ;;; ------------------------------------------------------------
