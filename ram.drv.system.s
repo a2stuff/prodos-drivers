@@ -129,7 +129,21 @@ self_name:      .res    16
         DEFINE_QUIT_PARAMS quit_params
 .endproc
 
+online_buf              := $1C00
+io_buf                  := $1C00
+dir_buf                 := $2000
+block_len               = $200
+
+        DEFINE_ON_LINE_PARAMS on_line_params,,online_buf
+        DEFINE_OPEN_PARAMS open_params, PATHNAME, io_buf
+        DEFINE_READ_PARAMS read_params, SYS_ADDR, SYS_LEN
+        DEFINE_READ_PARAMS read_block_params, dir_buf, block_len
+        DEFINE_CLOSE_PARAMS close_params
+
 .proc launch_next
+        ;; Read directory and look for .SYSTEM files; find this
+        ;; one, and invoke the following one.
+
         ptr := $A5
         num := $A7
         len := $A8
@@ -138,25 +152,53 @@ self_name:      .res    16
         ;; Own name found? If not, just quit
         lda     self_name
         beq     quit
-
         ;; --------------------------------------------------
-        ;; Read directory and look for .SYSTEM files; find this
-        ;; one, and invoke the following one.
-read_dir:
+        ;; Find name of boot device, copy into PATHNAME
         lda     devnum
-        sta     read_block_params_unit_num
-        jsr     read_block
+        sta     on_line_params::unit_num
+        MLI_CALL ON_LINE, on_line_params
+        bcc     :+
+        jmp     on_error
 
-        lda     data_buf + VolumeDirectoryHeader::entry_length
+:       lda     #'/'            ; Prefix by '/'
+        sta     PATHNAME+1
+        lda     online_buf
+        and     #$0F            ; Mask off length
+        sta     PATHNAME
+        ldx     #0              ; Copy name
+:       lda     online_buf+1,x
+        sta     PATHNAME+2,x
+        inx
+        cpx     PATHNAME
+        bne     :-
+        inx                     ; One more for '/' prefix
+        stx     PATHNAME
+
+        ;; Open directory
+        MLI_CALL OPEN, open_params
+        bcc     :+
+        jmp     on_error
+:       lda     open_params::ref_num
+        sta     read_block_params::ref_num
+        sta     close_params::ref_num
+
+        ;; Read first "block"
+        MLI_CALL READ, read_block_params
+        bcc     :+
+        jmp     on_error
+
+        ;; Get sizes out of header
+:       lda     dir_buf + VolumeDirectoryHeader::entry_length
         sta     entry_length_mod
-        lda     data_buf + VolumeDirectoryHeader::entries_per_block
+        lda     dir_buf + VolumeDirectoryHeader::entries_per_block
         sta     entries_per_block_mod
         lda     #1
         sta     num
 
-        lda     #<(data_buf + .sizeof(VolumeDirectoryHeader))
+        ;; Set up pointers to entry
+        lda     #<(dir_buf + .sizeof(VolumeDirectoryHeader))
         sta     ptr
-        lda     #>(data_buf + .sizeof(VolumeDirectoryHeader))
+        lda     #>(dir_buf + .sizeof(VolumeDirectoryHeader))
         sta     ptr+1
 
         ;; Process directory entry
@@ -208,40 +250,34 @@ next:   lda     ptr
         entries_per_block_mod := *-1
         bcc     entry
 
-        lda     data_buf + VolumeDirectoryHeader::next_block
-        sta     read_block_params_block_num
-        lda     data_buf + VolumeDirectoryHeader::next_block + 1
-        sta     read_block_params_block_num+1
-        ora     read_block_params_block_num
-        beq     not_found       ; last block has next=0
-        jsr     read_block
-        lda     #0
+        ;; Read next "block"
+        MLI_CALL READ, read_block_params
+        bcs     not_found
+
+        ;; Set up pointers to entry
+:       lda     #0
         sta     num
-        lda     #<(data_buf + $04)
+        lda     #<(dir_buf + $04)
         sta     ptr
-        lda     #>(data_buf + $04)
+        lda     #>(dir_buf + $04)
         sta     ptr+1
         jmp     entry
 
+        ;; --------------------------------------------------
         ;; Found a .SYSTEM file which is not this one; invoke
         ;; it if follows this one.
 handle_sys_file:
         bit     found_self_flag
         bpl     next
 
-        ;; Compose the path to invoke. First walk self path
-        ;; backwards to '/'.
-        ldx     PATHNAME
-        beq     append
-:       dex
-        beq     append
-        lda     PATHNAME,x
-        eor     #'/'
-        asl     a
-        bne     :-
+        MLI_CALL CLOSE, close_params
 
-        ;; Now append name of found file.
-append: ldy     #0
+        ;; Compose the path to invoke.
+        ldx     PATHNAME
+        inx
+        lda     #'/'
+        sta     PATHNAME,x
+        ldy     #0
 :       iny
         inx
         lda     (ptr),y
@@ -249,6 +285,7 @@ append: ldy     #0
         cpy     len
         bcc     :-
         stx     PATHNAME
+
         jmp     invoke_system_file
 
 not_found:
@@ -264,28 +301,14 @@ not_found:
 .endproc
 
 ;;; ------------------------------------------------------------
-;;; Read a disk block.
-
-.proc read_block
-        MLI_CALL READ_BLOCK, read_block_params
-        bcs     on_error
-        rts
-.endproc
-
-        ;; block 2 is volume directory
-        DEFINE_READ_BLOCK_PARAMS read_block_params, data_buf, 2
-        read_block_params_unit_num := read_block_params::unit_num
-        read_block_params_block_num := read_block_params::block_num
-
-;;; ------------------------------------------------------------
 ;;; Load/execute the system file in PATHNAME
 
 .proc invoke_system_file
         MLI_CALL OPEN, open_params
         bcs     on_error
 
-        lda     open_params_ref_num
-        sta     read_params_ref_num
+        lda     open_params::ref_num
+        sta     read_params::ref_num
 
         MLI_CALL READ, read_params
         bcs     on_error
@@ -318,16 +341,6 @@ not_found:
         bit     KBDSTRB
         jmp     quit
 .endproc
-
-;;; ------------------------------------------------------------
-
-        DEFINE_OPEN_PARAMS open_params, PATHNAME, data_buf
-        open_params_ref_num := open_params::ref_num
-
-        DEFINE_READ_PARAMS read_params, SYS_ADDR, SYS_LEN
-        read_params_ref_num := read_params::ref_num
-
-        DEFINE_CLOSE_PARAMS close_params
 
 ;;; ============================================================
 ;;; Data
