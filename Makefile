@@ -1,7 +1,6 @@
 
-CC65 = ~/dev/cc65/bin
 CAFLAGS = --target apple2enh --list-bytes 0
-CCFLAGS = --config apple2-asm.cfg
+LDFLAGS = --config apple2-asm.cfg
 
 OUTDIR = out
 
@@ -21,9 +20,9 @@ clean:
 	rm -f $(TARGETS)
 
 $(OUTDIR)/%.o: %.s $(HEADERS)
-	$(CC65)/ca65 $(CAFLAGS) --listing $(basename $@).list -o $@ $<
+	ca65 $(CAFLAGS) --listing $(basename $@).list -o $@ $<
 
 # System Files .SYS
 $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
-	$(CC65)/ld65 $(CCFLAGS) -o '$@' $<
+	ld65 $(LDFLAGS) -o '$@' $<
 	xattr -wx prodos.AuxType '00 20' $@
