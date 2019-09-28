@@ -215,13 +215,11 @@ digit:  cmp     #HI('0')          ; < '0' ?
         bcc     :-
 
 cricket_found:
+        jsr     restore_cmd_ctl
         jmp     install_driver
 
 cricket_not_found:
-        lda     saved_control
-        sta     CONTROL
-        lda     saved_command
-        sta     COMMAND
+        jsr     restore_cmd_ctl
         ;; fall through...
 
 not_found:
@@ -230,6 +228,13 @@ not_found:
         jsr     zstrout
         HIASCIIZ CR, CR, CR, PRODUCT, " - Not Found."
         jmp     launch_next_sys_file
+
+restore_cmd_ctl:
+        lda     saved_control
+        sta     CONTROL
+        lda     saved_command
+        sta     COMMAND
+        rts
 
 saved_command:  .byte   0
 saved_control:  .byte   0
