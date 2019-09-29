@@ -14,9 +14,9 @@ TARGETS = \
 	$(OUTDIR)/set.date.BIN
 
 # For timestamps
-MM = $(shell date "+%m")
-DD = $(shell date "+%d")
-YY = $(shell date "+%y")
+MM = $(shell date "+%-m")
+DD = $(shell date "+%-d")
+YY = $(shell date "+%-y")
 DEFINES = -D DD=$(DD) -D MM=$(MM) -D YY=$(YY)
 
 .PHONY: clean all
