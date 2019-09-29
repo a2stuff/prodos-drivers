@@ -7,10 +7,13 @@
         .org    $2000
 
         .include "apple2.inc"
-        .include "common.inc"
+
+        .include "inc/apple2.inc"
+        .include "inc/macros.inc"
+        .include "inc/prodos.inc"
 
 start:
-        PRODOS_CALL MLI_GET_TIME, 0
+        MLI_CALL GET_TIME, 0
 
 ;;; Standard format:
 ;;;

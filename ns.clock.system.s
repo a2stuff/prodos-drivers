@@ -11,8 +11,9 @@
         .include "apple2.inc"
         .include "opcodes.inc"
 
-        .include "./common.inc"
-
+        .include "inc/apple2.inc"
+        .include "inc/macros.inc"
+        .include "inc/prodos.inc"
 
 ;;; ------------------------------------------------------------
 
@@ -76,14 +77,14 @@ load:   lda     src,y           ; self-modified
         beq     pre_install
 floop:  inc     $A8
         dex
-        beq     copy
+        beq     @copy
         lda     PATHNAME,x
         eor     #'/'
         asl     a
         bne     floop
 
         ;; Copy name into |self_name| buffer
-copy:   ldy     #0
+@copy:  ldy     #0
 cloop:  iny
         inx
         lda     PATHNAME,x
@@ -237,7 +238,7 @@ not_found:
         bpl     :-
 
         ;; Show failure message
-        jsr     MON_HOME
+        jsr     HOME
         jsr     zstrout
         HIASCIIZ CR, CR, CR, PRODUCT, " - Not Found."
         jmp     launch_next_sys_file
@@ -286,7 +287,7 @@ loop:   lda     driver,y
 
         ;; Display success message
         bit     ROMIN2
-        jsr     MON_HOME
+        jsr     HOME
         jsr     zstrout
         HIASCIIZ CR, CR, CR, PRODUCT, " - Installed  "
 
@@ -338,16 +339,16 @@ loop:   lda     driver,y
         sta     read_block_params_unit_num
         jsr     read_block
 
-        lda     data_buffer + VolumeDirectoryBlockHeader::entry_length
+        lda     data_buffer + VolumeDirectoryHeader::entry_length
         sta     entry_length_mod
-        lda     data_buffer + VolumeDirectoryBlockHeader::entries_per_block
+        lda     data_buffer + VolumeDirectoryHeader::entries_per_block
         sta     entries_per_block_mod
         lda     #1
         sta     num
 
-        lda     #<(data_buffer + VolumeDirectoryBlockHeader::header_length)
+        lda     #<(data_buffer + .sizeof(VolumeDirectoryHeader))
         sta     ptr
-        lda     #>(data_buffer + VolumeDirectoryBlockHeader::header_length)
+        lda     #>(data_buffer + .sizeof(VolumeDirectoryHeader))
         sta     ptr+1
 
         ;; Process directory entry
@@ -355,7 +356,7 @@ entry:  ldy     #FileEntry::file_type      ; file_type
         lda     (ptr),y
         cmp     #$FF            ; type=SYS
         bne     next
-        ldy     #FileEntry::storage_type
+        ldy     #FileEntry::storage_type_name_length
         lda     (ptr),y
         and     #$30            ; regular file (not directory, pascal)
         beq     next
@@ -399,9 +400,9 @@ next:   lda     ptr
         entries_per_block_mod := *-1
         bcc     entry
 
-        lda     data_buffer + VolumeDirectoryBlockHeader::next_block
+        lda     data_buffer + VolumeDirectoryHeader::next_block
         sta     read_block_params_block_num
-        lda     data_buffer + VolumeDirectoryBlockHeader::next_block + 1
+        lda     data_buffer + VolumeDirectoryHeader::next_block + 1
         sta     read_block_params_block_num+1
         ora     read_block_params_block_num
         beq     not_found       ; last block has next=0
@@ -518,7 +519,7 @@ lowercase_mask:
 ;;; Invoke ProDOS QUIT routine.
 
 .proc quit
-        PRODOS_CALL MLI_QUIT, quit_params
+        MLI_CALL QUIT, quit_params
         .byte   0               ; crash if QUIT fails
         rts
 .proc quit_params
@@ -534,7 +535,7 @@ lowercase_mask:
 ;;; Read a disk block.
 
 .proc read_block
-        PRODOS_CALL MLI_READ_BLOCK, read_block_params
+        MLI_CALL READ_BLOCK, read_block_params
         bcs     on_error
         rts
 .endproc
@@ -552,16 +553,16 @@ block_num: .word   2            ; block_num - block 2 is volume directory
 ;;; Load/execute the system file in PATHNAME
 
 .proc invoke_system_file
-        PRODOS_CALL MLI_OPEN, open_params
+        MLI_CALL OPEN, open_params
         bcs     on_error
 
         lda     open_params_ref_num
         sta     read_params_ref_num
 
-        PRODOS_CALL MLI_READ, read_params
+        MLI_CALL READ, read_params
         bcs     on_error
 
-        PRODOS_CALL MLI_CLOSE, close_params
+        MLI_CALL CLOSE, close_params
         bcs     on_error
 
         jmp     SYS_ADDR        ; Invoke loaded SYSTEM file

@@ -9,7 +9,8 @@
         .include "apple2.inc"
         .include "opcodes.inc"
 
-        .include "./common.inc"
+        .include "./inc/apple2.inc"
+        .include "./inc/macros.inc"
 
         .org $2000
 
