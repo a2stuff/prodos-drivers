@@ -72,7 +72,8 @@ load:   lda     src,y           ; self-modified
 ;;; ============================================================
 
 .proc main
-        jsr     setup
+        jsr     save_chain_info
+        jsr     init_system
         jsr     maybe_install_driver
         jsr     launch_next
         brk
@@ -82,7 +83,7 @@ load:   lda     src,y           ; self-modified
 ;;; Preserve state needed to chain to next file
 ;;; ============================================================
 
-.proc setup
+.proc save_chain_info
         ;; --------------------------------------------------
         ;; Save most recent device for later, when chaining
         ;; to next .SYSTEM file.
@@ -132,15 +133,59 @@ devnum:         .byte   0
 self_name:      .res    16
 
 ;;; ============================================================
-;;; Find and invoke the next .SYSTEM file
+;;; Init system state
 ;;; ============================================================
 
-.proc quit
-        MLI_CALL QUIT, quit_params
-        brk                     ; crash if QUIT fails
+;;; Before installing, get the system to a known state.
 
-        DEFINE_QUIT_PARAMS quit_params
+.proc init_system
+        cld
+        bit     ROMIN2
+
+        ;; Update reset vector - ProDOS QUIT
+        lda     #<quit
+        sta     $03F2
+        lda     #>quit
+        sta     $03F3
+        eor     #$A5
+        sta     $03F4
+
+        ;; Quit 80-column firmware
+        lda     #$95            ; Ctrl+U (quit 80 col firmware)
+        jsr     COUT
+
+        ;; Reset I/O
+        sta     CLR80VID
+        sta     CLRALTCHAR
+        jsr     SETVID
+        jsr     SETKBD
+        jsr     SETNORM
+        jsr     INIT
+        jsr     HOME
+
+        ;; Update System Bit Map
+        ldx     #BITMAP_SIZE-1
+        lda     #%00000001      ; protect page $BF
+:       sta     BITMAP,x
+        lda     #%00000000      ; nothing else protected until...
+        dex
+        bne     :-
+        lda     #%11001111      ; ZP ($00), stack ($01), text page 1 ($04-$07)
+        sta     BITMAP
+
+        ;; Determine lowercase support
+        lda     MACHID
+        and     #$88            ; IIe or IIc (or IIgs) ?
+        bne     :+
+        lda     #$DF
+        sta     lowercase_mask  ; lower case to upper case
+
+:       rts
 .endproc
+
+;;; ============================================================
+;;; Find and invoke the next .SYSTEM file
+;;; ============================================================
 
 online_buf      := $1C00
 io_buf          := $1C00
@@ -155,14 +200,6 @@ block_len       = $200
 
 
 .proc launch_next
-        ;; Update reset vector - now terminates.
-        lda     #<quit
-        sta     $03F2
-        lda     #>quit
-        sta     $03F3
-        eor     #$A5
-        sta     $03F4
-
         ;; Read directory and look for .SYSTEM files; find this
         ;; one, and invoke the following one.
 
@@ -173,10 +210,12 @@ block_len       = $200
         ;; --------------------------------------------------
         ;; Own name found? If not, just quit
         lda     self_name
-        beq     quit
+        bne     :+
+        jmp     quit
+
         ;; --------------------------------------------------
         ;; Find name of boot device, copy into PATHNAME
-        lda     devnum
+:       lda     devnum
         sta     on_line_params::unit_num
         MLI_CALL ON_LINE, on_line_params
         bcc     :+
@@ -331,6 +370,7 @@ not_found:
 
         lda     open_params::ref_num
         sta     read_params::ref_num
+        sta     close_params::ref_num
 
         MLI_CALL READ, read_params
         bcs     on_error
@@ -362,6 +402,13 @@ not_found:
         bpl     :-
         bit     KBDSTRB
         jmp     quit
+.endproc
+
+.proc quit
+        MLI_CALL QUIT, quit_params
+        brk                     ; crash if QUIT fails
+
+        DEFINE_QUIT_PARAMS quit_params
 .endproc
 
 ;;; ============================================================
@@ -445,50 +492,10 @@ units:  pla
 ;;; ============================================================
 
 ;;; ============================================================
-;;; Before installing, get the system to a known state and
-;;; ensure there is not a previous clock driver installed.
+;;; Ensure there is not a previous clock driver installed.
 
 .proc maybe_install_driver
-        cld
-        bit     ROMIN2
-
-        ;; Update reset vector - re-invokes this code.
-        lda     #<maybe_install_driver
-        sta     $03F2
-        lda     #>maybe_install_driver
-        sta     $03F3
-        eor     #$A5
-        sta     $03F4
-
-        ;; Quit 80-column firmware
-        lda     #$95            ; Ctrl+U (quit 80 col firmware)
-        jsr     COUT
-
-        ;; Reset I/O
-        sta     CLR80VID
-        sta     CLRALTCHAR
-        jsr     SETVID
-        jsr     SETKBD
-        jsr     SETNORM
-        jsr     INIT
-
-        ;; Update System Bit Map
-        ldx     #BITMAP_SIZE-1
-        lda     #%00000001      ; protect page $BF
-:       sta     BITMAP,x
-        lda     #%00000000      ; nothing else protected until...
-        dex
-        bne     :-
-        lda     #%11001111      ; ZP ($00), stack ($01), text page 1 ($04-$07)
-        sta     BITMAP
-
         lda     MACHID
-        and     #$88            ; IIe or IIc (or IIgs) ?
-        bne     :+
-        lda     #$DF
-        sta     lowercase_mask  ; lower case to upper case
-
-:       lda     MACHID
         and     #$01            ; existing clock card?
         beq     detect_cricket  ; nope, check for Cricket
 
@@ -567,7 +574,6 @@ cricket_not_found:
 
 not_found:
         ;; Show failure message
-        jsr     HOME
         jsr     zstrout
         scrcode "\r\r\r", PRODUCT, " - Not Found."
         .byte   0
@@ -655,8 +661,6 @@ loop:   lda     driver,y
         jsr     DATETIME
 
         ;; Display success message
-        bit     ROMIN2
-        jsr     HOME
         jsr     zstrout
         scrcode "\r\r\r", PRODUCT, " - Installed  "
         .byte   0
