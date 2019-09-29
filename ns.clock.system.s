@@ -7,8 +7,10 @@
 
         .setcpu "6502"
         .linecont +
+        .feature string_escapes
 
         .include "apple2.inc"
+        .include "apple2.mac"
         .include "opcodes.inc"
 
         .include "inc/apple2.inc"
@@ -240,7 +242,9 @@ not_found:
         ;; Show failure message
         jsr     HOME
         jsr     zstrout
-        HIASCIIZ CR, CR, CR, PRODUCT, " - Not Found."
+        scrcode "\r\r\r", PRODUCT, " - Not Found."
+        .byte   0
+
         jmp     launch_next_sys_file
 
 saved:  .byte   0, 0, 0, 0
@@ -289,7 +293,8 @@ loop:   lda     driver,y
         bit     ROMIN2
         jsr     HOME
         jsr     zstrout
-        HIASCIIZ CR, CR, CR, PRODUCT, " - Installed  "
+        scrcode "\r\r\r", PRODUCT, " - Installed  "
+        .byte   0
 
         ;; Display the current date
         lda     DATELO+1        ; month
@@ -445,7 +450,9 @@ append: ldy     #0
 
 not_found:
         jsr     zstrout
-        HIASCIIZ CR, CR, CR, "* Unable to find next '.SYSTEM' file *", CR
+        scrcode "\r\r\r* Unable to find next '.SYSTEM' file *\r"
+        .byte   0
+
         bit     KBDSTRB
 :       lda     KBD
         bpl     :-
@@ -574,11 +581,15 @@ block_num: .word   2            ; block_num - block 2 is volume directory
 .proc on_error
         pha
         jsr     zstrout
-        HIASCIIZ CR, CR, CR, "**  Disk Error $"
+        scrcode "\r\r\r**  Disk Error $"
+        .byte   0
+
         pla
         jsr     PRBYTE
         jsr     zstrout
-        HIASCIIZ "  **", CR
+        scrcode "  **\r"
+        .byte   0
+
         bit     KBDSTRB
 :       lda     KBD
         bpl     :-

@@ -119,27 +119,5 @@ end:
 
 ;;; ============================================================
 
-;;; Define a string with high bits set
-;;; e.g. HIASCII "Ding ding", $7, $7
-.macro  HIASCII arg, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-        .if .blank(arg)
-          .exitmacro
-        .endif
-        .if .match ({arg}, "")  ; string?
-          .repeat .strlen(arg), i
-            .byte .strat(arg, i) | $80
-          .endrep
-        .else                   ; otherwise assume number/char/identifier
-          .byte (arg | $80)
-        .endif
-        HIASCII arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-.endmacro
-
-;;; Like HIASCII, but null-terminated
-.macro  HIASCIIZ arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-        HIASCII arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-        .byte   0
-.endmacro
-
 ;;; Set the high bit on the passed byte
 .define HI(c)   ((c)|$80)

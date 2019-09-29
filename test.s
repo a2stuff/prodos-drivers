@@ -5,8 +5,10 @@
 
         .setcpu "6502"
         .linecont +
+        .feature string_escapes
 
         .include "apple2.inc"
+        .include "apple2.mac"
         .include "opcodes.inc"
 
         .include "./inc/apple2.inc"
@@ -33,12 +35,16 @@
         bne     ssc_not_found
 
         jsr     zstrout
-        HIASCIIZ "SSC found.", CR
+        scrcode "SSC found.\r"
+        .byte   0
+
         jmp     init_ssc
 
 ssc_not_found:
         jsr     zstrout
-        HIASCIIZ "SSC not found.", CR
+        scrcode "SSC not found.\r"
+        .byte   0
+
         rts
 
         ;; TODO: Write NUL and check for 'C' ... version ... $8D (CR)
@@ -64,7 +70,8 @@ init_ssc:
         ;; by a version number (in ASCII) and a carriage return (141,
         ;; $8D)."
         jsr     zstrout
-        HIASCIIZ "Reading SSC: "
+        scrcode "Reading SSC: "
+        .byte   0
 
         jsr     readbyte
         bcs     cricket_not_found ; timeout
@@ -89,12 +96,14 @@ digit:  cmp     #HI('0')          ; < '0' ?
 
 cricket_found:
         jsr     zstrout
-        HIASCIIZ CR, "Cricket tentatively found.", CR
+        scrcode "\rCricket tentatively found.\r"
+        .byte   0
         jmp     exit
 
 cricket_not_found:
         jsr     zstrout
-        HIASCIIZ CR, "Cricket not identified.", CR
+        scrcode "\rCricket not identified.\r"
+        .byte   0
         jmp     exit
 
 exit:
@@ -143,7 +152,8 @@ check:  lda     STATUS          ; did we get it?
         bne     check
 
         jsr zstrout
-        HIASCIIZ "... timeout!"
+        scrcode "... timeout!"
+        .byte   0
 
         sec                     ; failed
         rts

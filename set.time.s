@@ -3,8 +3,10 @@
 
         .setcpu "6502"
         .linecont +
+        .feature string_escapes
 
         .include "apple2.inc"
+        .include "apple2.mac"
 
         .include "inc/apple2.inc"
         .include "inc/macros.inc"
@@ -13,9 +15,7 @@
 
 .proc main
         jsr     zstrout
-        HIASCII CR, "Time: HH:MM:SS XM"
-        HIASCII BS, BS, BS, BS, BS, BS
-        HIASCII BS, BS, BS, BS, BS
+        scrcode "\rTime: HH:MM:SS XM\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08"
         .byte   0
 
         jsr     GETLN2
