@@ -20,11 +20,8 @@
 
 ;;; ------------------------------------------------------------
 
-        data_buffer = $1800
-
         read_delay_hi = $3 * 3 ; ($300 iterations is normal * 3.6MHz)
 
-        .define SYSTEM_SUFFIX ".SYSTEM"
         .define PRODUCT "Cricket Clock"
 
 ;;; ------------------------------------------------------------
@@ -45,10 +42,10 @@
 ;;; file can be loaded/run at $2000.
 
 .proc relocate
-        src := SYS_ADDR
+        src := reloc_start
         dst := dst_addr
 
-        ldx     #(sys_end - sys_start + $FF) / $100 ; pages
+        ldx     #(reloc_end - reloc_start + $FF) / $100 ; pages
         ldy     #0
 load:   lda     src,y           ; self-modified
         load_hi := *-1
@@ -67,8 +64,7 @@ load:   lda     src,y           ; self-modified
 ;;; ============================================================
 ;;; Start of relocated code
 
-
-sys_start:
+        reloc_start := *
         pushorg dst_addr
 
 ;;; ============================================================
@@ -377,6 +373,70 @@ suffix:
 found_self_flag:
         .byte   0
 
+;;; ============================================================
+;;; Common Routines
+;;; ============================================================
+
+;;; ------------------------------------------------------------
+;;; Output a high-ascii, null-terminated string.
+;;; String immediately follows the JSR.
+
+.proc zstrout
+        ptr := $A5
+
+        pla                     ; read address from stack
+        sta     ptr
+        pla
+        sta     ptr+1
+        bne     skip            ; always (since data not on ZP)
+
+next:   cmp     #HI('a')        ; lower-case?
+        bcc     :+
+        and     lowercase_mask  ; make upper-case if needed
+:       jsr     COUT
+skip:   inc     ptr
+        bne     :+
+        inc     ptr+1
+:       ldy     #0
+        lda     (ptr),y
+        bne     next
+
+        lda     ptr+1           ; restore address to stack
+        pha
+        lda     ptr
+        pha
+        rts
+.endproc
+
+lowercase_mask:
+        .byte   $FF             ; Set to $DF on systems w/o lower-case
+
+;;; ------------------------------------------------------------
+;;; COUT a 2-digit number in A
+
+.proc cout_number
+        ldx     #HI('0')
+        cmp     #10             ; >= 10?
+        bcc     tens
+
+        ;; divide by 10, dividend(+'0') in x remainder in a
+:       sbc     #10
+        inx
+        cmp     #10
+        bcs     :-
+
+tens:   pha
+        cpx     #HI('0')
+        beq     units
+        txa
+        jsr     COUT
+
+units:  pla
+        ora     #HI('0')
+        jsr     COUT
+        rts
+.endproc
+
 
 ;;; ============================================================
 ;;;
@@ -403,10 +463,6 @@ found_self_flag:
         ;; Quit 80-column firmware
         lda     #$95            ; Ctrl+U (quit 80 col firmware)
         jsr     COUT
-
-        ;; Reset stack
-        ldx     #$FF
-        txs
 
         ;; Reset I/O
         sta     CLR80VID
@@ -636,70 +692,6 @@ loop:   lda     driver,y
 .endproc
 
 ;;; ============================================================
-;;; Common Routines
-;;; ============================================================
-
-;;; ------------------------------------------------------------
-;;; Output a high-ascii, null-terminated string.
-;;; String immediately follows the JSR.
-
-.proc zstrout
-        ptr := $A5
-
-        pla                     ; read address from stack
-        sta     ptr
-        pla
-        sta     ptr+1
-        bne     skip            ; always (since data not on ZP)
-
-next:   cmp     #HI('a')        ; lower-case?
-        bcc     :+
-        and     lowercase_mask  ; make upper-case if needed
-:       jsr     COUT
-skip:   inc     ptr
-        bne     :+
-        inc     ptr+1
-:       ldy     #0
-        lda     (ptr),y
-        bne     next
-
-        lda     ptr+1           ; restore address to stack
-        pha
-        lda     ptr
-        pha
-        rts
-.endproc
-
-lowercase_mask:
-        .byte   $FF             ; Set to $DF on systems w/o lower-case
-
-;;; ------------------------------------------------------------
-;;; COUT a 2-digit number in A
-
-.proc cout_number
-        ldx     #HI('0')
-        cmp     #10             ; >= 10?
-        bcc     tens
-
-        ;; divide by 10, dividend(+'0') in x remainder in a
-:       sbc     #10
-        inx
-        cmp     #10
-        bcs     :-
-
-tens:   pha
-        cpx     #HI('0')
-        beq     units
-        txa
-        jsr     COUT
-
-units:  pla
-        ora     #HI('0')
-        jsr     COUT
-        rts
-.endproc
-
-;;; ============================================================
 ;;; Cricket Clock Driver - copied into ProDOS
 ;;; ============================================================
 
@@ -796,5 +788,6 @@ done:   pla                     ; restore saved command state
 
 ;;; ============================================================
 ;;; End of relocated code
+
         poporg
-sys_end:
+        reloc_end := *

@@ -3,7 +3,7 @@
 ;;; http://www.apple2.org.za/gswv/a2zine/GS.WorldView/v1999/Oct/MISC/NSC.Disk.TXT
 
 ;;; Modification history available at:
-;;; https://github.com/inexorabletash/cricket
+;;; https://github.com/a2stuff/cricket
 
         .setcpu "6502"
         .linecont +
@@ -19,22 +19,17 @@
 
 ;;; ------------------------------------------------------------
 
-        data_buffer = $1800
-
-        .define SYSTEM_SUFFIX ".SYSTEM"
         .define PRODUCT "No-Slot Clock"
 
 ;;; ------------------------------------------------------------
 
-        .org $1000
-
-        ;;  Loaded at $2000 but relocates to $1000
+        ;; SYS files load at $2000; relocates self to $1000
+        .org SYS_ADDR
+        dst_addr := $1000
 
 ;;; ------------------------------------------------------------
 
-sys_start:
-        sec
-        bcs     relocate
+        jmp     relocate
 
         .byte   MM, DD, YY      ; version date stamp
 
@@ -44,10 +39,10 @@ sys_start:
 ;;; file can be loaded/run at $2000.
 
 .proc relocate
-        src := SYS_ADDR
-        dst := $1000
+        src := reloc_start
+        dst := dst_addr
 
-        ldx     #(sys_end - sys_start + $FF) / $100 ; pages
+        ldx     #(reloc_end - reloc_start + $FF) / $100 ; pages
         ldy     #0
 load:   lda     src,y           ; self-modified
         load_hi := *-1
@@ -58,57 +53,406 @@ load:   lda     src,y           ; self-modified
         inc     load_hi
         inc     store_hi
         dex
-        beq     find_self_name  ; done
-        jmp     load
+        bne     load
+
+        jmp     main
 .endproc
 
-;;; ------------------------------------------------------------
-;;; Identify the name of this SYS file, which should be present at
-;;; $280 with or without a path prefix. This is used when searching
-;;; for the next .SYSTEM file to execute.
+;;; ============================================================
+;;; Start of relocated code
 
-.proc find_self_name
-        ;; Search pathname buffer backwards for '/', then
-        ;; copy name into |self_name|; this is used later
-        ;; to find/invoke the next .SYSTEM file.
+        reloc_start := *
+        pushorg dst_addr
+
+;;; ============================================================
+;;; Main routine
+;;; ============================================================
+
+.proc main
+        jsr     setup
+        jsr     maybe_install_driver
+        jsr     launch_next
+        brk
+.endproc
+
+;;; ============================================================
+;;; Preserve state needed to chain to next file
+;;; ============================================================
+
+.proc setup
+        ;; --------------------------------------------------
+        ;; Save most recent device for later, when chaining
+        ;; to next .SYSTEM file.
+        lda     DEVNUM
+        sta     devnum
+
+        ;; --------------------------------------------------
+        ;; Identify the name of this SYS file, which should be present at
+        ;; $280 with or without a path prefix. Search pathname buffer
+        ;; backwards for '/', then copy name into |self_name|.
 
         ;; Find '/' (which may not be present, prefix is optional)
-        lda     #0
-        sta     $A8
         ldx     PATHNAME
-        beq     pre_install
-floop:  inc     $A8
+        beq     no_name
+        ldy     #0              ; Y = length
+:       lda     PATHNAME,x
+        and     #$7f            ; ignore high bit
+        cmp     #'/'
+        beq     copy_name
+        iny
         dex
-        beq     @copy
-        lda     PATHNAME,x
-        eor     #'/'
-        asl     a
-        bne     floop
+        bne     :-
 
         ;; Copy name into |self_name| buffer
-@copy:  ldy     #0
-cloop:  iny
-        inx
-        lda     PATHNAME,x
-        sta     self_name,y
-        cpy     $A8
-        bcc     cloop
+copy_name:
+        cpy     #0
+        beq     no_name
         sty     self_name
+
+        ldx     PATHNAME
+:       lda     PATHNAME,x
+        sta     self_name,y
+        dex
+        dey
+        bne     :-
+
+        ;; Done
+        rts
+
+no_name:
+        lda     #0
+        sta     self_name
+        rts
 .endproc
-        ;; Fall through...
+
+devnum:         .byte   0
+self_name:      .res    16
+
+;;; ============================================================
+;;; Find and invoke the next .SYSTEM file
+;;; ============================================================
+
+.proc quit
+        MLI_CALL QUIT, quit_params
+        brk                     ; crash if QUIT fails
+
+        DEFINE_QUIT_PARAMS quit_params
+.endproc
+
+online_buf      := $1C00
+io_buf          := $1C00
+dir_buf         := $2000
+block_len       = $200
+
+        DEFINE_ON_LINE_PARAMS on_line_params,,online_buf
+        DEFINE_OPEN_PARAMS open_params, PATHNAME, io_buf
+        DEFINE_READ_PARAMS read_params, SYS_ADDR, SYS_LEN
+        DEFINE_READ_PARAMS read_block_params, dir_buf, block_len
+        DEFINE_CLOSE_PARAMS close_params
+
+
+.proc launch_next
+        ;; Update reset vector - now terminates.
+        lda     #<quit
+        sta     $03F2
+        lda     #>quit
+        sta     $03F3
+        eor     #$A5
+        sta     $03F4
+
+        ;; Read directory and look for .SYSTEM files; find this
+        ;; one, and invoke the following one.
+
+        ptr := $A5
+        num := $A7
+        len := $A8
+
+        ;; --------------------------------------------------
+        ;; Own name found? If not, just quit
+        lda     self_name
+        beq     quit
+        ;; --------------------------------------------------
+        ;; Find name of boot device, copy into PATHNAME
+        lda     devnum
+        sta     on_line_params::unit_num
+        MLI_CALL ON_LINE, on_line_params
+        bcc     :+
+        jmp     on_error
+
+:       lda     #'/'            ; Prefix by '/'
+        sta     PATHNAME+1
+        lda     online_buf
+        and     #$0F            ; Mask off length
+        sta     PATHNAME
+        ldx     #0              ; Copy name
+:       lda     online_buf+1,x
+        sta     PATHNAME+2,x
+        inx
+        cpx     PATHNAME
+        bne     :-
+        inx                     ; One more for '/' prefix
+        stx     PATHNAME
+
+        ;; Open directory
+        MLI_CALL OPEN, open_params
+        bcc     :+
+        jmp     on_error
+:       lda     open_params::ref_num
+        sta     read_block_params::ref_num
+        sta     close_params::ref_num
+
+        ;; Read first "block"
+        MLI_CALL READ, read_block_params
+        bcc     :+
+        jmp     on_error
+
+        ;; Get sizes out of header
+:       lda     dir_buf + VolumeDirectoryHeader::entry_length
+        sta     entry_length_mod
+        lda     dir_buf + VolumeDirectoryHeader::entries_per_block
+        sta     entries_per_block_mod
+        lda     #1
+        sta     num
+
+        ;; Set up pointers to entry
+        lda     #<(dir_buf + .sizeof(VolumeDirectoryHeader))
+        sta     ptr
+        lda     #>(dir_buf + .sizeof(VolumeDirectoryHeader))
+        sta     ptr+1
+
+        ;; Process directory entry
+entry:  ldy     #FileEntry::file_type      ; file_type
+        lda     (ptr),y
+        cmp     #$FF            ; type=SYS
+        bne     next
+        ldy     #FileEntry::storage_type_name_length
+        lda     (ptr),y
+        and     #$30            ; regular file (not directory, pascal)
+        beq     next
+        lda     (ptr),y
+        and     #$0F            ; name_length
+        sta     len
+        tay
+
+        ;; Compare suffix - is it .SYSTEM?
+        ldx     suffix
+:       lda     (ptr),y
+        cmp     suffix,x
+        bne     next
+        dey
+        dex
+        bne     :-
+
+        ;; Yes; is it *this* .SYSTEM file?
+        ldy     self_name
+        cpy     len
+        bne     handle_sys_file
+:       lda     (ptr),y
+        cmp     self_name,y
+        bne     handle_sys_file
+        dey
+        bne     :-
+        sec
+        ror     found_self_flag
+
+        ;; Move to the next entry
+next:   lda     ptr
+        clc
+        adc     #$27            ; self-modified: entry_length
+        entry_length_mod := *-1
+        sta     ptr
+        bcc     :+
+        inc     ptr+1
+:       inc     num
+        lda     num
+        cmp     #$0D            ; self-modified: entries_per_block
+        entries_per_block_mod := *-1
+        bcc     entry
+
+        ;; Read next "block"
+        MLI_CALL READ, read_block_params
+        bcs     not_found
+
+        ;; Set up pointers to entry
+        lda     #0
+        sta     num
+        lda     #<(dir_buf + $04)
+        sta     ptr
+        lda     #>(dir_buf + $04)
+        sta     ptr+1
+        jmp     entry
+
+        ;; --------------------------------------------------
+        ;; Found a .SYSTEM file which is not this one; invoke
+        ;; it if follows this one.
+handle_sys_file:
+        bit     found_self_flag
+        bpl     next
+
+        MLI_CALL CLOSE, close_params
+
+        ;; Compose the path to invoke.
+        ldx     PATHNAME
+        inx
+        lda     #'/'
+        sta     PATHNAME,x
+        ldy     #0
+:       iny
+        inx
+        lda     (ptr),y
+        sta     PATHNAME,x
+        cpy     len
+        bcc     :-
+        stx     PATHNAME
+
+        jmp     invoke_system_file
+
+not_found:
+        jsr     zstrout
+        scrcode "\r\r* Unable to find next '.SYSTEM' file *\r"
+        .byte   0
+
+        bit     KBDSTRB
+:       lda     KBD
+        bpl     :-
+        bit     KBDSTRB
+        jmp     quit
+.endproc
 
 ;;; ------------------------------------------------------------
+;;; Load/execute the system file in PATHNAME
+
+.proc invoke_system_file
+        MLI_CALL OPEN, open_params
+        bcs     on_error
+
+        lda     open_params::ref_num
+        sta     read_params::ref_num
+
+        MLI_CALL READ, read_params
+        bcs     on_error
+
+        MLI_CALL CLOSE, close_params
+        bcs     on_error
+
+        jmp     SYS_ADDR        ; Invoke loaded SYSTEM file
+.endproc
+
+;;; ------------------------------------------------------------
+;;; Error handler - invoked if any ProDOS error occurs.
+
+.proc on_error
+        pha
+        jsr     zstrout
+        scrcode "\r\r*  Disk Error $"
+        .byte   0
+
+        pla
+        jsr     PRBYTE
+
+        jsr     zstrout
+        scrcode "  *\r"
+        .byte   0
+
+        bit     KBDSTRB
+:       lda     KBD
+        bpl     :-
+        bit     KBDSTRB
+        jmp     quit
+.endproc
+
+;;; ============================================================
+;;; Data
+
+suffix:
+        PASCAL_STRING ".SYSTEM"
+
+found_self_flag:
+        .byte   0
+
+;;; ============================================================
+;;; Common Routines
+;;; ============================================================
+
+;;; ------------------------------------------------------------
+;;; Output a high-ascii, null-terminated string.
+;;; String immediately follows the JSR.
+
+.proc zstrout
+        ptr := $A5
+
+        pla                     ; read address from stack
+        sta     ptr
+        pla
+        sta     ptr+1
+        bne     skip            ; always (since data not on ZP)
+
+next:   cmp     #HI('a')        ; lower-case?
+        bcc     :+
+        and     lowercase_mask  ; make upper-case if needed
+:       jsr     COUT
+skip:   inc     ptr
+        bne     :+
+        inc     ptr+1
+:       ldy     #0
+        lda     (ptr),y
+        bne     next
+
+        lda     ptr+1           ; restore address to stack
+        pha
+        lda     ptr
+        pha
+        rts
+.endproc
+
+lowercase_mask:
+        .byte   $FF             ; Set to $DF on systems w/o lower-case
+
+;;; ------------------------------------------------------------
+;;; COUT a 2-digit number in A
+
+.proc cout_number
+        ldx     #HI('0')
+        cmp     #10             ; >= 10?
+        bcc     tens
+
+        ;; divide by 10, dividend(+'0') in x remainder in a
+:       sbc     #10
+        inx
+        cmp     #10
+        bcs     :-
+
+tens:   pha
+        cpx     #HI('0')
+        beq     units
+        txa
+        jsr     COUT
+
+units:  pla
+        ora     #HI('0')
+        jsr     COUT
+        rts
+.endproc
+
+
+;;; ============================================================
+;;;
+;;; Driver Installer
+;;;
+;;; ============================================================
+
+;;; ============================================================
 ;;; Before installing, get the system to a known state and
 ;;; ensure there is not a previous clock driver installed.
 
-.proc pre_install
+.proc maybe_install_driver
         cld
         bit     ROMIN2
 
         ;; Update reset vector - re-invokes this code.
-        lda     #<pre_install
+        lda     #<maybe_install_driver
         sta     $03F2
-        lda     #>pre_install
+        lda     #>maybe_install_driver
         sta     $03F3
         eor     #$A5
         sta     $03F4
@@ -116,10 +460,6 @@ cloop:  iny
         ;; Quit 80-column firmware
         lda     #$95            ; Ctrl+U (quit 80 col firmware)
         jsr     COUT
-
-        ;; Reset stack
-        ldx     #$FF
-        txs
 
         ;; Reset I/O
         sta     CLR80VID
@@ -149,8 +489,7 @@ cloop:  iny
         and     #$01            ; existing clock card?
         beq     detect_nsc      ; nope, check for NSC
 
-        ;; Chain with no message
-        jmp     launch_next_sys_file
+        rts                     ; yes, done!
 .endproc
 
 ;;; ------------------------------------------------------------
@@ -245,7 +584,7 @@ not_found:
         scrcode "\r\r\r", PRODUCT, " - Not Found."
         .byte   0
 
-        jmp     launch_next_sys_file
+        rts
 
 saved:  .byte   0, 0, 0, 0
 tries:  .byte   3
@@ -322,317 +661,13 @@ loop:   lda     driver,y
         pla                     ; year
         jsr     cout_number
         jsr     CROUT
+
+        rts                     ; done!
 .endproc
 
-;;; ------------------------------------------------------------
-;;; Find and invoke the next .SYSTEM file
-
-.proc launch_next_sys_file
-        ;; Update reset vector - now terminates.
-        lda     #<quit
-        sta     $03F2
-        lda     #>quit
-        sta     $03F3
-        eor     #$A5
-        sta     $03F4
-
-        ptr := $A5
-        num := $A7
-        len := $A8
-
-        lda     DEVNUM          ; stick with most recent device
-        sta     read_block_params_unit_num
-        jsr     read_block
-
-        lda     data_buffer + VolumeDirectoryHeader::entry_length
-        sta     entry_length_mod
-        lda     data_buffer + VolumeDirectoryHeader::entries_per_block
-        sta     entries_per_block_mod
-        lda     #1
-        sta     num
-
-        lda     #<(data_buffer + .sizeof(VolumeDirectoryHeader))
-        sta     ptr
-        lda     #>(data_buffer + .sizeof(VolumeDirectoryHeader))
-        sta     ptr+1
-
-        ;; Process directory entry
-entry:  ldy     #FileEntry::file_type      ; file_type
-        lda     (ptr),y
-        cmp     #$FF            ; type=SYS
-        bne     next
-        ldy     #FileEntry::storage_type_name_length
-        lda     (ptr),y
-        and     #$30            ; regular file (not directory, pascal)
-        beq     next
-        lda     (ptr),y
-        and     #$0F            ; name_length
-        sta     len
-        tay
-
-        ;; Compare suffix - is it .SYSTEM?
-        ldx     #.strlen(SYSTEM_SUFFIX)-1
-:       lda     (ptr),y
-        cmp     suffix,x
-        bne     next
-        dey
-        dex
-        bpl     :-
-
-        ;; Yes; is it *this* .SYSTEM file?
-        ldy     self_name
-        cpy     len
-        bne     handle_sys_file
-:       lda     (ptr),y
-        cmp     self_name,y
-        bne     handle_sys_file
-        dey
-        bne     :-
-        sec
-        ror     found_self_flag
-
-        ;; Move to the next entry
-next:   lda     ptr
-        clc
-        adc     #$27            ; self-modified: entry_length
-        entry_length_mod := *-1
-        sta     ptr
-        bcc     :+
-        inc     ptr+1
-:       inc     num
-        lda     num
-        cmp     #$0D            ; self-modified: entries_per_block
-        entries_per_block_mod := *-1
-        bcc     entry
-
-        lda     data_buffer + VolumeDirectoryHeader::next_block
-        sta     read_block_params_block_num
-        lda     data_buffer + VolumeDirectoryHeader::next_block + 1
-        sta     read_block_params_block_num+1
-        ora     read_block_params_block_num
-        beq     not_found       ; last block has next=0
-        jsr     read_block
-        lda     #0
-        sta     num
-        lda     #<(data_buffer + $04)
-        sta     ptr
-        lda     #>(data_buffer + $04)
-        sta     ptr+1
-        jmp     entry
-
-        ;; Found a .SYSTEM file which is not this one; invoke
-        ;; it if follows this one.
-handle_sys_file:
-        bit     found_self_flag
-        bpl     next
-
-        ;; Compose the path to invoke. First walk self path
-        ;; backwards to '/'.
-        ldx     PATHNAME
-        beq     append
-:       dex
-        beq     append
-        lda     PATHNAME,x
-        eor     #'/'
-        asl     a
-        bne     :-
-
-        ;; Now append name of found file.
-append: ldy     #0
-:       iny
-        inx
-        lda     (ptr),y
-        sta     PATHNAME,x
-        cpy     len
-        bcc     :-
-        stx     PATHNAME
-        jmp     invoke_system_file
-
-not_found:
-        jsr     zstrout
-        scrcode "\r\r\r* Unable to find next '.SYSTEM' file *\r"
-        .byte   0
-
-        bit     KBDSTRB
-:       lda     KBD
-        bpl     :-
-        bit     KBDSTRB
-        jmp     quit
-.endproc
-
-;;; ------------------------------------------------------------
-;;; Output a high-ascii, null-terminated string.
-;;; String immediately follows the JSR.
-
-.proc zstrout
-        ptr := $A5
-
-        pla                     ; read address from stack
-        sta     ptr
-        pla
-        sta     ptr+1
-        bne     skip            ; always (since data not on ZP)
-
-next:   cmp     #HI('a')        ; lower-case?
-        bcc     :+
-        and     lowercase_mask  ; make upper-case if needed
-:       jsr     COUT
-skip:   inc     ptr
-        bne     :+
-        inc     ptr+1
-:       ldy     #0
-        lda     (ptr),y
-        bne     next
-
-        lda     ptr+1           ; restore address to stack
-        pha
-        lda     ptr
-        pha
-        rts
-.endproc
-
-;;; ------------------------------------------------------------
-;;; COUT a 2-digit number in A
-
-.proc cout_number
-        ldx     #HI('0')
-        cmp     #10             ; >= 10?
-        bcc     tens
-
-        ;; divide by 10, dividend(+'0') in x remainder in a
-:       sbc     #10
-        inx
-        cmp     #10
-        bcs     :-
-
-tens:   pha
-        cpx     #HI('0')
-        beq     units
-        txa
-        jsr     COUT
-
-units:  pla
-        ora     #HI('0')
-        jsr     COUT
-        rts
-.endproc
-
-;;; ------------------------------------------------------------
-
-lowercase_mask:
-        .byte   $FF             ; Set to $DF on systems w/o lower-case
-
-;;; ------------------------------------------------------------
-;;; Invoke ProDOS QUIT routine.
-
-.proc quit
-        MLI_CALL QUIT, quit_params
-        .byte   0               ; crash if QUIT fails
-        rts
-.proc quit_params
-        .byte   4               ; param_count
-        .byte   0               ; quit_type
-        .word   0000            ; reserved
-        .byte   0               ; reserved
-        .word   0000            ; reserved
-.endproc
-.endproc
-
-;;; ------------------------------------------------------------
-;;; Read a disk block.
-
-.proc read_block
-        MLI_CALL READ_BLOCK, read_block_params
-        bcs     on_error
-        rts
-.endproc
-
-.proc read_block_params
-        .byte   3               ; param_count
-unit_num:  .byte   $60          ; unit_num
-        .addr   data_buffer     ; data_buffer
-block_num: .word   2            ; block_num - block 2 is volume directory
-.endproc
-        read_block_params_unit_num := read_block_params::unit_num
-        read_block_params_block_num := read_block_params::block_num
-
-;;; ------------------------------------------------------------
-;;; Load/execute the system file in PATHNAME
-
-.proc invoke_system_file
-        MLI_CALL OPEN, open_params
-        bcs     on_error
-
-        lda     open_params_ref_num
-        sta     read_params_ref_num
-
-        MLI_CALL READ, read_params
-        bcs     on_error
-
-        MLI_CALL CLOSE, close_params
-        bcs     on_error
-
-        jmp     SYS_ADDR        ; Invoke loaded SYSTEM file
-.endproc
-
-;;; ------------------------------------------------------------
-;;; Error handler - invoked if any ProDOS error occurs.
-
-.proc on_error
-        pha
-        jsr     zstrout
-        scrcode "\r\r\r**  Disk Error $"
-        .byte   0
-
-        pla
-        jsr     PRBYTE
-        jsr     zstrout
-        scrcode "  **\r"
-        .byte   0
-
-        bit     KBDSTRB
-:       lda     KBD
-        bpl     :-
-        bit     KBDSTRB
-        jmp     quit
-.endproc
-
-;;; ------------------------------------------------------------
-
-.proc open_params
-        .byte   3               ; param_count
-        .addr   PATHNAME        ; pathname
-        .addr   data_buffer     ; io_buffer
-ref_num:.byte   1               ; ref_num
-.endproc
-        open_params_ref_num := open_params::ref_num
-
-.proc read_params
-        .byte   4               ; param_count
-ref_num:.byte   1               ; ref_num
-        .addr   SYS_ADDR        ; data_buffer
-        .word   MAX_DW          ; request_count
-        .word   0               ; trans_count
-.endproc
-        read_params_ref_num := read_params::ref_num
-
-.proc close_params
-        .byte   1               ; param_count
-ref_num:.byte   0               ; ref_num
-.endproc
-
-;;; ------------------------------------------------------------
-
-found_self_flag:
-        .byte   0
-
-suffix: .byte   SYSTEM_SUFFIX
-
-self_name:
-        PASCAL_STRING "NS.CLOCK.SYSTEM"
-
-;;; ------------------------------------------------------------
+;;; ============================================================
 ;;; NSC driver - modified as needed and copied into ProDOS
+;;; ============================================================
 
 driver:
         php
@@ -724,7 +759,10 @@ unlock:
 
         sizeof_driver := * - driver
         .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
-
 ;;; ------------------------------------------------------------
 
-sys_end:
+;;; ============================================================
+;;; End of relocated code
+
+        poporg
+        reloc_end := *
