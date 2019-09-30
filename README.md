@@ -1,4 +1,4 @@
-# _The Cricket!_ &mdash; ProDOS Clock Driver 
+# _The Cricket!_ &mdash; ProDOS Clock Driver
 
 [![Build Status](https://travis-ci.org/a2stuff/cricket.svg?branch=master)](https://travis-ci.org/a2stuff/cricket)
 
@@ -48,8 +48,8 @@ Also, an updated [NS.CLOCK.SYSTEM](ns.clock.system.s) is included that fixes a t
 
 ## Resources
 
-Cricket disks on Asimov: 
-* ftp://ftp.apple.asimov.net/pub/apple_II/images/hardware/sound/cricket_disk1.po 
+Cricket disks on Asimov:
+* ftp://ftp.apple.asimov.net/pub/apple_II/images/hardware/sound/cricket_disk1.po
 * ftp://ftp.apple.asimov.net/pub/apple_II/images/hardware/sound/cricket_disk2.po
 
 Cricket Manual on Asimov:

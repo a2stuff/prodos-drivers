@@ -25,7 +25,7 @@ all: $(OUTDIR) $(TARGETS)
 $(OUTDIR):
 	mkdir -p $(OUTDIR)
 
-HEADERS = $(wildcard *.inc)
+HEADERS = $(wildcard *.inc) $(wildcard inc/*.inc)
 
 clean:
 	rm -f $(OUTDIR)/*.o
