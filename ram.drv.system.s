@@ -27,13 +27,14 @@
 ;;; Relocate from $2000 to $1000
 
 .proc relocate
-        src := SYS_ADDR
+        src := reloc_start
+        dst := dst_addr
 
-        ldx     #(sys_end - sys_start + $FF) / $100 ; pages
+        ldx     #(reloc_end - reloc_start + $FF) / $100 ; pages
         ldy     #0
-load:   lda     sys_start,y     ; self-modified
+load:   lda     src,y     ; self-modified
         load_hi := *-1
-        sta     dst_addr,y      ; self-modified
+        sta     dst,y      ; self-modified
         store_hi := *-1
         iny
         bne     load
@@ -49,9 +50,8 @@ load:   lda     sys_start,y     ; self-modified
 ;;; Start of relocated code
 ;;;
 
-sys_start:
+        reloc_start := *
         pushorg dst_addr
-
 
 ;;; ============================================================
 ;;; Main routine
@@ -59,7 +59,7 @@ sys_start:
 
 .proc main
         jsr     setup
-        jsr     install_driver
+        jsr     maybe_install_driver
         jsr     launch_next
         brk
 .endproc
@@ -124,7 +124,7 @@ self_name:      .res    16
 
 .proc quit
         MLI_CALL QUIT, quit_params
-        .byte   0               ; crash if QUIT fails
+        brk                     ; crash if QUIT fails
 
         DEFINE_QUIT_PARAMS quit_params
 .endproc
@@ -255,7 +255,7 @@ next:   lda     ptr
         bcs     not_found
 
         ;; Set up pointers to entry
-:       lda     #0
+        lda     #0
         sta     num
         lda     #<(dir_buf + $04)
         sta     ptr
@@ -354,7 +354,7 @@ found_self_flag:
 
 ;;; ============================================================
 ;;;
-;;; Driver
+;;; Driver Installer
 ;;;
 ;;; ============================================================
 
@@ -381,7 +381,7 @@ unitnum:                .byte   $03     ; S3D1; could be $B for S3D2
 ;;; ============================================================
 ;;; Install the driver
 
-.proc install_driver
+.proc maybe_install_driver
 
         sta     CLR80COL
         ldy     #0
@@ -735,7 +735,7 @@ finish: bit     ROMIN2
         stx     $06
         stx     BANKSEL
         stx     vol_dir_header+VolumeDirectoryHeader::total_blocks
-        jmp     install_driver  ; retry???
+        jmp     maybe_install_driver  ; retry???
 
 install_success:
         sta     ALTZPOFF
@@ -1072,5 +1072,6 @@ stash_01        := *+2+$180     ; len: $80
 
 ;;; ============================================================
 ;;; End of relocated code
+
         poporg
-sys_end:
+        reloc_end := *
