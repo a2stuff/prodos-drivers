@@ -39,7 +39,7 @@
 loop:   lda     INPUT_BUFFER,x
         jsr     sendbyte
         inx
-        cmp     #HI(CR)
+        cmp     #HI($0D)        ; = CR
         bne     loop
 
         rts

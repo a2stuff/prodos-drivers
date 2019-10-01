@@ -4,6 +4,8 @@ LDFLAGS = --config apple2-asm.cfg
 
 OUTDIR = out
 
+HEADERS = $(wildcard *.inc) $(wildcard inc/*.inc)
+
 TARGETS = \
 	$(OUTDIR)/prodos.mod.BIN \
 	$(OUTDIR)/ns.clock.system.SYS \
@@ -25,14 +27,10 @@ all: $(OUTDIR) $(TARGETS)
 $(OUTDIR):
 	mkdir -p $(OUTDIR)
 
-HEADERS = $(wildcard *.inc) $(wildcard inc/*.inc)
-
 clean:
 	rm -f $(OUTDIR)/*.o
 	rm -f $(OUTDIR)/*.list
 	rm -f $(OUTDIR)/$(TARGETS)
-
-
 
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
