@@ -4,9 +4,15 @@ LDFLAGS = --config apple2-asm.cfg
 
 OUTDIR = out
 
-HEADERS = $(wildcard inc/*.inc)
+HEADERS = $(wildcard *.inc) $(wildcard inc/*.inc)
 
 TARGETS = $(OUTDIR)/ram.drv.system.SYS
+
+# For timestamps
+MM = $(shell date "+%-m")
+DD = $(shell date "+%-d")
+YY = $(shell date "+%-y")
+DEFINES = -D DD=$(DD) -D MM=$(MM) -D YY=$(YY)
 
 .PHONY: clean all
 all: $(OUTDIR) $(TARGETS)
@@ -20,7 +26,7 @@ clean:
 	rm -f $(TARGETS)
 
 $(OUTDIR)/%.o: %.s $(HEADERS)
-	ca65 $(CAFLAGS) --listing $(basename $@).list -o $@ $<
+	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
 # System Files .SYS
 $(OUTDIR)/%.SYS: $(OUTDIR)/%.o

@@ -116,3 +116,8 @@ end:
         sta     arg2+1
     .endif
 .endmacro
+
+;;; ============================================================
+
+;;; Set the high bit on the passed byte
+.define HI(c)   ((c)|$80)
