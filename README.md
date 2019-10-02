@@ -60,3 +60,8 @@ next file starting with 'C').
 
 There are a few spare bytes to play with and more can be squeezed
 out, so perhaps further improvements can be made.
+
+## QUIT.SYSTEM
+
+This just invokes the ProDOS quit handler immediately. It can
+be used as the last in a chain of "driver" installers.
