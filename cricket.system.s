@@ -201,6 +201,8 @@ loop:   lda     driver,y
         ;; Invoke the driver to init the time
         jsr     DATETIME
 
+        lda     ROMIN2
+
         ;; Display success message
         jsr     zstrout
         scrcode "\r\r\r", PRODUCT, " - Installed  "
