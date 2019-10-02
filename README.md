@@ -40,7 +40,7 @@ http://www.lazilong.com/apple_ii/bye.sys/bye.html
 
 Since I really liked the look of _Bird's Better Bye_ I used this as
 the boot system for my virtual hard drive (occuring after some [clock
-drivers](https://github.com/inexorabletash/cricket)).
+drivers](https://github.com/a2stuff/cricket)).
 
 ## Buh-Bye
 
