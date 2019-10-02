@@ -4,6 +4,12 @@ LDFLAGS = --config apple2-asm.cfg
 
 TARGETS = bye.system.SYS buhbye.system.SYS quit.system.SYS
 
+# For timestamps
+MM = $(shell date "+%-m")
+DD = $(shell date "+%-d")
+YY = $(shell date "+%-y")
+DEFINES = -D DD=$(DD) -D MM=$(MM) -D YY=$(YY)
+
 .PHONY: clean all
 all: $(TARGETS)
 
@@ -14,7 +20,7 @@ clean:
 	rm -f $(TARGETS)
 
 %.o: %.s $(HEADERS)
-	ca65 $(CAFLAGS) --listing $(basename $@).list -o $@ $<
+	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
 %.SYS: %.o
 	ld65 $(LDFLAGS) -o $@ $<

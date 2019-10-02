@@ -3,10 +3,18 @@
 ;;; (so this is Bell's Better Bird's Better Bye - Buh-Bye)
 ;;;  * alpha key advances to next matching filename
 ;;;  * replaced directory enumeration (smaller, per PDTRM)
+;;;  * installs, then chains to next .SYSTEM file
 
         .setcpu "65C02"
+        .linecont +
+        .feature string_escapes
+
         .include "apple2.inc"
-        .include "prodos.inc"
+        .include "apple2.mac"
+
+        .include "inc/apple2.inc"
+        .include "inc/macros.inc"
+        .include "inc/prodos.inc"
 
 ;;; Miscellaneous
 
@@ -14,12 +22,6 @@ COL80HPOS       := $57B
 
 ;;; I/O Soft Switches / Firmware
 
-RAMRDOFF        := $C002        ; If 80STORE Off: Read Main Mem $0200-$BFFF
-RAMRDON         := $C003        ; If 80STORE Off: Read Aux Mem $0200-$BFFF
-RAMWRTOFF       := $C004        ; If 80STORE Off: Write Main Mem $0200-$BFFF
-RAMWRTON        := $C005        ; If 80STORE Off: Write Aux Mem $0200-$BFFF
-ALTZPOFF        := $C008        ; Main Stack and Zero Page
-ALTZPON         := $C009        ; Aux Stack and Zero Page
 ROMINNW         := $C082        ; Read ROM; no write
 ROMINWB1        := $C089        ; Read ROM; write RAM bank 1
 
@@ -31,10 +33,7 @@ SETTXT          := $FB39
 TABV            := $FB5B
 SETPWRC         := $FB6F
 BELL1           := $FBDD
-HOME            := $FC58
-COUT            := $FDED
 SETINV          := $FE80
-SETNORM         := $FE84
 
 ;;; ASCII/Key codes
 ASCII_TAB       := $9
@@ -47,21 +46,10 @@ ASCII_ETB       := $17          ; scroll text window down
 ASCII_EM        := $19          ; move cursor to upper left
 ASCII_ESCAPE    := $1B
 
-;;; ------------------------------------------------------------
 
-.define HI(char)        (char|$80)
-
-.macro  HIASCII arg
-        .repeat .strlen(arg), i
-        .byte   .strat(arg, i) | $80
-        .endrep
-.endmacro
-
-.macro  HIASCIIZ arg
-        HIASCII arg
-        .byte   0
-.endmacro
-
+;;; ************************************************************
+        .include "driver_preamble.inc"
+;;; ************************************************************
 
 ;;; ------------------------------------------------------------
 
@@ -76,11 +64,10 @@ ASCII_ESCAPE    := $1B
 ;;; Installer
 ;;; ------------------------------------------------------------
 
-        .org    $2000
-
         install_size := $300    ; must fit in $D100...$D3FF = $300
 
-.proc install
+.proc maybe_install_driver
+
         src := install_src
         end := install_src + install_size
         dst := $D100            ; Install location in ProDOS (bank 2)
@@ -123,28 +110,17 @@ loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
         sta     ALTZPOFF
         sta     ROMINWB1
         sta     ROMINWB1
-        ;; fall through
-.endproc
 
-.proc quit
-        MLI_CALL QUIT, params
-
-.proc params
-params: .byte   4
-type:   .byte   0
-res1:   .word   0
-res2:   .byte   0
-res3:   .addr   0
+        rts
 .endproc
-.endproc
-
-        install_src := *
 
 ;;; ------------------------------------------------------------
 ;;; Selector
 ;;; ------------------------------------------------------------
 
-        .org    $1000
+        install_src := *
+
+        pushorg $1000
 .proc selector
 
         prefix          := $280 ; length-prefixed
@@ -259,7 +235,7 @@ fail:   lda     prefix_depth    ; root?
 
         ;; Store entry_length (byte), entries_per_block (byte), file_count (word)
         ldx     #3
-:       lda     read_buffer + DirectoryHeader::entry_length,x
+:       lda     read_buffer + SubdirectoryHeader::entry_length,x
         sta     entry_length,x
         dex
         bpl     :-
@@ -290,9 +266,9 @@ while_loop:
         ;; Check file type
         ldy     #FileEntry::file_type
         lda     (entry_pointer),y
-        cmp     #FileType::Directory
+        cmp     #FT_DIRECTORY
         beq     store_entry
-        cmp     #FileType::System
+        cmp     #FT_SYSTEM
         bne     done_active_entry
 
 store_entry:
@@ -693,7 +669,8 @@ cout:   jmp     COUT
         text_resources := *
 
 .proc help_string
-        HIASCIIZ "RETURN: Select | TAB: Chg Vol | ESC: Back"
+        scrcode "RETURN: Select | TAB: Chg Vol | ESC: Back"
+        .byte   0
 .endproc
 
         ;; Mousetext sequence: Enable, folder left, folder right, disable
@@ -704,43 +681,26 @@ cout:   jmp     COUT
 
 ;;; ------------------------------------------------------------
 
-.proc open_params
-params: .byte   3
-path:   .addr   prefix
-buffer: .addr   $1C00
-ref_num:.byte   0
-.endproc
+        DEFINE_OPEN_PARAMS open_params, prefix, $1C00
         open_params_ref_num := open_params::ref_num
 
-.proc close_params
-params: .byte   1
-ref_num:.byte   0
-.endproc
+        DEFINE_CLOSE_PARAMS close_params
 
-.proc on_line_params
-params: .byte   2
-unit:   .byte   $60
-buffer: .addr   prefix+1
-.endproc
-        on_line_params_unit := on_line_params::unit
+        DEFINE_ON_LINE_PARAMS on_line_params, $60, prefix+1
+        on_line_params_unit := on_line_params::unit_num
 
-.proc set_prefix_params
-params: .byte   1
-path:   .addr   prefix
-.endproc
+        DEFINE_SET_PREFIX_PARAMS set_prefix_params, prefix
 
-.proc read_params
-params: .byte   4
-ref_num:.byte   1
-buffer: .word   read_buffer
-request:.word   0               ; This can be beyond $12FF - MARKER
-trans:  .word   0
-.endproc
+        DEFINE_READ_PARAMS read_params, read_buffer, 0
         read_params_ref_num := read_params::ref_num
-        read_params_request := read_params::request
+        read_params_request := read_params::request_count
 
 ;;; ------------------------------------------------------------
 
-        .assert read_params::request - selector <= install_size, error, "Must fit in $300 bytes"
-
 .endproc
+        .assert .sizeof(selector) <= install_size, error, "Must fit in $300 bytes"
+        poporg
+
+;;; ************************************************************
+        .include "driver_postamble.inc"
+;;; ************************************************************
