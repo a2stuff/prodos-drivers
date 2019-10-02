@@ -1,5 +1,7 @@
 # Bird's Better Bye - Disassembly (and improvements)
 
+[![Build Status](https://travis-ci.org/a2stuff/bbb.svg?branch=master)](https://travis-ci.org/a2stuff/bbb)
+
 The ProDOS operating system for the Apple II personal computer line
 supported a quit routine (invoked from BASIC with the `BYE` command)
 allowing the user to type the name of a system file to invoke once
