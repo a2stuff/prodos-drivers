@@ -49,8 +49,7 @@ load:   lda     src,y           ; self-modified
         jsr     save_chain_info
         jsr     init_system
         jsr     maybe_install_driver
-        jsr     launch_next
-        brk
+        jmp     launch_next
 .endproc
 
 ;;; ============================================================
