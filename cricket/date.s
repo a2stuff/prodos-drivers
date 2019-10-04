@@ -8,9 +8,9 @@
 
         .include "apple2.inc"
 
-        .include "inc/apple2.inc"
-        .include "inc/macros.inc"
-        .include "inc/prodos.inc"
+        .include "../inc/apple2.inc"
+        .include "../inc/macros.inc"
+        .include "../inc/prodos.inc"
 
 start:
         MLI_CALL GET_TIME, 0

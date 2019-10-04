@@ -6,8 +6,8 @@
         .include "apple2.inc"
         .include "opcodes.inc"
 
-        .include "./inc/apple2.inc"
-        .include "./inc/prodos.inc"
+        .include "../inc/apple2.inc"
+        .include "../inc/prodos.inc"
 
         .org    $300
 

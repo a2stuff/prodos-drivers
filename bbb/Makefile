@@ -13,7 +13,7 @@ DEFINES = -D DD=$(DD) -D MM=$(MM) -D YY=$(YY)
 .PHONY: clean all
 all: $(TARGETS)
 
-HEADERS = $(wildcard *.inc)
+HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
 clean:
 	rm -f *.o

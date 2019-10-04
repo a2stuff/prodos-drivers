@@ -14,9 +14,9 @@
         .include "apple2.mac"
         .include "opcodes.inc"
 
-        .include "inc/apple2.inc"
-        .include "inc/macros.inc"
-        .include "inc/prodos.inc"
+        .include "../inc/apple2.inc"
+        .include "../inc/macros.inc"
+        .include "../inc/prodos.inc"
 
 ;;; ************************************************************
         .include "driver_preamble.inc"
