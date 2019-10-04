@@ -19,7 +19,7 @@
         .include "../inc/prodos.inc"
 
 ;;; ************************************************************
-        .include "driver_preamble.inc"
+        .include "../inc/driver_preamble.inc"
 ;;; ************************************************************
 
 ;;; ============================================================
@@ -333,5 +333,5 @@ done:   pla                     ; restore saved command state
         .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
 
 ;;; ************************************************************
-        .include "driver_postamble.inc"
+        .include "../inc/driver_postamble.inc"
 ;;; ************************************************************

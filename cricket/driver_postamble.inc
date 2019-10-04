@@ -1,3 +1,0 @@
-
-        poporg
-        reloc_end := *

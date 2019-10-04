@@ -32,7 +32,7 @@ Requires [cc65](https://github.com/cc65/cc65). The included `Makefile` is very s
 
 ## Notes
 
-I ended up disassembling both [NS.CLOCK.SYSTEM](ns.clock.system.s) (to understand the SYSTEM chaining - what a pain!) and The Cricket!'s [PRODOS.MOD](prodos.mod.s) and melding them together, adding in the detection routine following the protocol in the manual.
+I ended up disassembling both [NS.CLOCK.SYSTEM](../ns.clock/ns.clock.system.s) (to understand the SYSTEM chaining - what a pain!) and The Cricket!'s [PRODOS.MOD](prodos.mod.s) and melding them together, adding in the detection routine following the protocol in the manual.
 
 ## Other Utilities
 
@@ -41,8 +41,6 @@ These `BRUN`able files are also built:
 * [TEST](test.s) attempts to identify an SSC in Slot 2 and the Cricket via the ID sequence, to test routines.
 * [SET.DATE](set.date.s) sets the Cricket's current date.
 * [SET.TIME](set.time.s) sets the Cricket's current time.
-
-Also, an updated [NS.CLOCK.SYSTEM](ns.clock.system.s) is included that fixes a typo, removes beeps, and is less chatty so you can have both `NS.CLOCK.SYSTEM` and `CRICKET.SYSTEM` in the same hard disk image if you use the image across different hardware configurations.
 
 ## Resources
 

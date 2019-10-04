@@ -1,3 +1,11 @@
+# Generated files
+*.BIN
+*.SYS
+*.list
+
+# Reference copy of original binary
+orig
+
 # Build directory
 out
 

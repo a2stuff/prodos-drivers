@@ -1,4 +1,4 @@
-targets := cricket bbb ram.drv
+targets := ns.clock cricket bbb ram.drv
 
 .PHONY: all $(targets)
 

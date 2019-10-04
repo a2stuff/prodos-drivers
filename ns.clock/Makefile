@@ -7,12 +7,7 @@ OUTDIR = out
 HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
 TARGETS = \
-	$(OUTDIR)/prodos.mod.BIN \
-	$(OUTDIR)/cricket.system.SYS \
-	$(OUTDIR)/test.BIN \
-	$(OUTDIR)/date.BIN \
-	$(OUTDIR)/set.time.BIN \
-	$(OUTDIR)/set.date.BIN
+	$(OUTDIR)/ns.clock.system.SYS
 
 # For timestamps
 MM = $(shell date "+%-m")
@@ -34,6 +29,6 @@ clean:
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
-$(OUTDIR)/%.BIN $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
+$(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<
 	xattr -wx prodos.AuxType '00 20' $@
