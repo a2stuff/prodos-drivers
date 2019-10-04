@@ -1,9 +1,5 @@
 # Disassembly of Glen E. Bredon's `RAM.DRV.SYSTEM` for Apple II ProDOS
 
-
-[![Build Status](https://travis-ci.org/a2stuff/ram.drv.system.svg?branch=master)](https://travis-ci.org/a2stuff/ram.drv.system)
-
-
 This was started before realizing what the origin of the `RAM.SYSTEM`
 found on a MouseDesk 2.0 disk image file was.
 
