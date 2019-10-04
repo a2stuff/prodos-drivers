@@ -2,7 +2,7 @@
 CAFLAGS = --target apple2enh --list-bytes 0
 LDFLAGS = --config apple2-asm.cfg
 
-TARGETS = bye.system.SYS buhbye.system.SYS
+TARGETS = quit.system.SYS
 
 # For timestamps
 MM = $(shell date "+%-m")
