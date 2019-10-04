@@ -1,0 +1,10 @@
+# Reference copy of original binary
+orig
+
+# Output directory
+out
+
+# Output files
+*.SYS
+*.BIN
+*.list
