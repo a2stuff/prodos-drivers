@@ -117,11 +117,11 @@ self_name:      .res    16
 
         ;; Update reset vector - ProDOS QUIT
         lda     #<quit
-        sta     $03F2
+        sta     RESETVEC
         lda     #>quit
-        sta     $03F3
+        sta     RESETVEC+1
         eor     #$A5
-        sta     $03F4
+        sta     RESETVEC+2
 
         ;; Quit 80-column firmware
         lda     #$95            ; Ctrl+U (quit 80 col firmware)
@@ -130,10 +130,11 @@ self_name:      .res    16
         ;; Reset I/O
         sta     CLR80VID
         sta     CLRALTCHAR
-        jsr     SETVID
-        jsr     SETKBD
+        sta     CLR80COL
         jsr     SETNORM
         jsr     INIT
+        jsr     SETVID
+        jsr     SETKBD
         jsr     HOME
 
         ;; Update System Bit Map

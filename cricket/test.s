@@ -13,6 +13,7 @@
 
         .include "../inc/apple2.inc"
         .include "../inc/macros.inc"
+        .include "../inc/ascii.inc"
 
         .org $2000
 
@@ -84,7 +85,7 @@ init_ssc:
 
 :       jsr     readbyte
         bcs     cricket_not_found ; timeout
-        cmp     #HI($0D)          ; = CR ?
+        cmp     #HI(ASCII_CR)
         beq     cricket_found
 digit:  cmp     #HI('0')          ; < '0' ?
         bcc     cricket_not_found

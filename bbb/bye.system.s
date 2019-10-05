@@ -2,63 +2,15 @@
 
         .setcpu "65C02"
         .include "apple2.inc"
-        .include "prodos.inc"
+        .include "apple2.mac"
 
-;;; Miscellaneous
-
-RESETVEC        := $3F2
-
-COL80HPOS       := $57B
-
-;;; I/O Soft Switches / Firmware
-
-RAMRDOFF        := $C002        ; If 80STORE Off: Read Main Mem $0200-$BFFF
-RAMRDON         := $C003        ; If 80STORE Off: Read Aux Mem $0200-$BFFF
-RAMWRTOFF       := $C004        ; If 80STORE Off: Write Main Mem $0200-$BFFF
-RAMWRTON        := $C005        ; If 80STORE Off: Write Aux Mem $0200-$BFFF
-ALTZPOFF        := $C008        ; Main Stack and Zero Page
-ALTZPON         := $C009        ; Aux Stack and Zero Page
-ROMINNW         := $C082        ; Read ROM; no write
-ROMINWB1        := $C089        ; Read ROM; write RAM bank 1
-
-SLOT3           := $C300
-
-;;; Monitor
-
-SETTXT          := $FB39
-TABV            := $FB5B
-SETPWRC         := $FB6F
-BELL1           := $FBDD
-HOME            := $FC58
-COUT            := $FDED
-SETINV          := $FE80
-SETNORM         := $FE84
-
-;;; ASCII/Key codes
-ASCII_TAB       := $9
-ASCII_DOWN      := $A           ; down arrow
-ASCII_UP        := $B           ; up arrow
-ASCII_CR        := $D
-ASCII_RIGHT     := $15          ; right arrow
-ASCII_SYN       := $16          ; scroll text window up
-ASCII_ETB       := $17          ; scroll text window down
-ASCII_EM        := $19          ; move cursor to upper left
-ASCII_ESCAPE    := $1B
+        .include "../inc/apple2.inc"
+        .include "../inc/prodos.inc"
+        .include "../inc/ascii.inc"
 
 ;;; ------------------------------------------------------------
 
 .define HI(char)        (char|$80)
-
-.macro  HIASCII arg
-        .repeat .strlen(arg), i
-        .byte   .strat(arg, i) | $80
-        .endrep
-.endmacro
-
-.macro  HIASCIIZ arg
-        HIASCII arg
-        .byte   0
-.endmacro
 
 
 ;;; ------------------------------------------------------------
@@ -121,7 +73,7 @@ ASCII_ESCAPE    := $1B
 ;;; ------------------------------------------------------------
 
         cld                     ; ProDOS protocol for QUIT routine
-        lda     ROMINNW         ; Page in ROM for reads, writes ignored
+        lda     ROMIN2          ; Page in ROM for reads, writes ignored
 
         ;; Point reset vector at this routine
         stz     RESETVEC
@@ -197,7 +149,7 @@ check_device:
         lda     open_params_ref_num
         sta     read_params_ref_num
         sta     mark_ref_num
-        lda     #DirectoryHeader::size
+        lda     #.sizeof(SubdirectoryHeader)
         sta     read_params_request
         stz     read_params_request+1
         jsr     do_read
@@ -205,7 +157,7 @@ check_device:
 
         ;; Store entry_length/entries_per_block/file_count
         ldx     #3
-:       lda     read_buffer + DirectoryHeader::entry_length,x
+:       lda     read_buffer + SubdirectoryHeader::entry_length,x
         sta     entry_length,x
         dex
         bpl     :-
@@ -256,7 +208,7 @@ carry:  inc     mark_position+1
         bcs     finish_read2
 
         inc     entry_num
-        lda     read_buffer + FileEntry::storage_type
+        lda     read_buffer + FileEntry::storage_type_name_length
         and     #$F0            ; mask off storage_type
         beq     floop           ; inactive file entry
         dec     file_count
@@ -269,9 +221,9 @@ carry:  inc     mark_position+1
 
         ;; Check file type
         lda     read_buffer + FileEntry::file_type
-        cmp     #FileType::Directory
+        cmp     #FT_DIRECTORY
         beq     :+
-        cmp     #FileType::System
+        cmp     #FT_SYSTEM
         bne     next_file_entry
 
         ;; Check to see if we have room
@@ -603,7 +555,8 @@ cout:   jmp     COUT
 
         string_start := *
 .proc help_string
-        HIASCIIZ "RETURN: Select | TAB: Chg Vol | ESC: Back"
+        scrcode "RETURN: Select | TAB: Chg Vol | ESC: Back"
+        .byte   0
 .endproc
 
         ;; Mousetext sequence: Enable, folder left, folder right, disable
@@ -714,7 +667,7 @@ loop:   lda     (src_ptr)
         lda     src_ptr
         cmp     #<end
         bne     loop
-        lda     (src_ptr)       ; WTF??
+        lda     (src_ptr)
         sta     (dst_ptr)
         sta     ALTZPOFF
         sta     ROMINWB1

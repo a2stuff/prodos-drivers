@@ -10,6 +10,7 @@
 
         .include "../inc/apple2.inc"
         .include "../inc/macros.inc"
+        .include "../inc/ascii.inc"
 
         .org $2000
 
@@ -39,7 +40,7 @@
 loop:   lda     INPUT_BUFFER,x
         jsr     sendbyte
         inx
-        cmp     #HI($0D)        ; = CR
+        cmp     #HI(ASCII_CR)
         bne     loop
 
         rts

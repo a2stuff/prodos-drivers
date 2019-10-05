@@ -6,7 +6,8 @@ OUTDIR = out
 
 HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
-TARGETS = $(OUTDIR)/ram.drv.system.SYS
+TARGETS = \
+	$(OUTDIR)/ram.drv.system.SYS
 
 # For timestamps
 MM = $(shell date "+%-m")
@@ -23,12 +24,11 @@ $(OUTDIR):
 clean:
 	rm -f $(OUTDIR)/*.o
 	rm -f $(OUTDIR)/*.list
-	rm -f $(TARGETS)
+	rm -f $(OUTDIR)/$(TARGETS)
 
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
-# System Files .SYS
 $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
-	ld65 $(LDFLAGS) -o '$@' $<
+	ld65 $(LDFLAGS) -o $@ $<
 	xattr -wx prodos.AuxType '00 20' $@

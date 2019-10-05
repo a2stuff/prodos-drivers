@@ -8,6 +8,8 @@
 ;;; Soft Switches
 ;;; ============================================================
 
+;;; I/O Soft Switches / Firmware
+
 RAMRDOFF        := $C002
 RAMRDON         := $C003
 RAMWRTOFF       := $C004
@@ -24,6 +26,7 @@ RDPAGE2         := $C01C
 BANKSEL         := $C073        ; Select RamWorks bank
 
 ROMIN2          := $C082        ; Read ROM; no write
+ROMINWB1        := $C089        ; Read ROM; write RAM bank 1
 RWRAM1          := $C08B        ; Read/write RAM bank 1
 
 ;;; ============================================================
@@ -37,18 +40,35 @@ COMMAND  := $C08A + $20         ; ACIA Command Register (read/write)
 CONTROL  := $C08B + $20         ; ACIA Control Register (read/write)
 
 ;;; ============================================================
+;;; Other Slots
+;;; ============================================================
+
+SLOT3           := $C300
+
+;;; ============================================================
 ;;; Monitor ROM routines
 ;;; ============================================================
 
 INIT            := $FB2F
+SETTXT          := $FB39
+TABV            := $FB5B
+SETPWRC         := $FB6F
+BELL1           := $FBDD
 HOME            := $FC58
 GETLN           := $FD6A        ; with prompt character
 GETLN2          := $FD6F        ; no prompt character
 CROUT           := $FD8E
 PRBYTE          := $FDDA
 COUT            := $FDED
+SETINV          := $FE80
 SETNORM         := $FE84
 SETKBD          := $FE89
 SETVID          := $FE93
 
+;;; ============================================================
+;;; Well-known RAM locations
+;;; ============================================================
+
 INPUT_BUFFER    := $200
+RESETVEC        := $3F2
+COL80HPOS       := $57B

@@ -15,37 +15,7 @@
         .include "../inc/apple2.inc"
         .include "../inc/macros.inc"
         .include "../inc/prodos.inc"
-
-;;; Miscellaneous
-
-COL80HPOS       := $57B
-
-;;; I/O Soft Switches / Firmware
-
-ROMINNW         := $C082        ; Read ROM; no write
-ROMINWB1        := $C089        ; Read ROM; write RAM bank 1
-
-SLOT3           := $C300
-
-;;; Monitor
-
-SETTXT          := $FB39
-TABV            := $FB5B
-SETPWRC         := $FB6F
-BELL1           := $FBDD
-SETINV          := $FE80
-
-;;; ASCII/Key codes
-ASCII_TAB       := $9
-ASCII_DOWN      := $A           ; down arrow
-ASCII_UP        := $B           ; up arrow
-ASCII_CR        := $D
-ASCII_RIGHT     := $15          ; right arrow
-ASCII_SYN       := $16          ; scroll text window up
-ASCII_ETB       := $17          ; scroll text window down
-ASCII_EM        := $19          ; move cursor to upper left
-ASCII_ESCAPE    := $1B
-
+        .include "../inc/ascii.inc"
 
 ;;; ************************************************************
         .include "../inc/driver_preamble.inc"
@@ -75,7 +45,7 @@ ASCII_ESCAPE    := $1B
         src_ptr := $19
         dst_ptr := $1B
 
-        sta     ALTZPOFF
+        sta     ALTZPOFF        ; TODO: Necessary?
         lda     ROMIN           ; write bank 2
         lda     ROMIN
 
@@ -107,7 +77,7 @@ loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
         cmp     #<end
         bne     loop
 
-        sta     ALTZPOFF
+        sta     ALTZPOFF        ; TODO: Necessary?
         sta     ROMINWB1
         sta     ROMINWB1
 
@@ -158,7 +128,6 @@ loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
 ;;; ------------------------------------------------------------
 
         cld                     ; ProDOS protocol for QUIT routine
-        lda     ROMINNW         ; Page in ROM for reads, writes ignored
 
         lda     #$A0
         jsr     SLOT3           ; Activate 80-Column Firmware
