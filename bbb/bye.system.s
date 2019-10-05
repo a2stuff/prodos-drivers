@@ -1,17 +1,22 @@
 ;;; Disassembly of BYE.SYSTEM (Bird's Better Bye)
+;;; Modifications by Joshua Bell inexorabletash@gmail.com
+;;;  * installs, then chains to next .SYSTEM file
 
         .setcpu "65C02"
+        .linecont +
+        .feature string_escapes
+
         .include "apple2.inc"
         .include "apple2.mac"
 
         .include "../inc/apple2.inc"
+        .include "../inc/macros.inc"
         .include "../inc/prodos.inc"
         .include "../inc/ascii.inc"
 
-;;; ------------------------------------------------------------
-
-.define HI(char)        (char|$80)
-
+;;; ************************************************************
+        .include "../inc/driver_preamble.inc"
+;;; ************************************************************
 
 ;;; ------------------------------------------------------------
 
@@ -23,21 +28,63 @@
 ;;; area is Apple's dispatcher code.
 
 ;;; ------------------------------------------------------------
-;;; Entry point
+;;; Installer
 ;;; ------------------------------------------------------------
 
-        ;; Loads at $2000 but executed at $1000.
+        max_size = $300
 
-        .org    $2000
+.proc maybe_install_driver
 
-        jmp     install_and_quit
-        install_src := *
+        src := install_src
+        end := install_src + install_size
+        dst := $D100            ; Install location in ProDOS (bank 2)
+
+        src_ptr := $19
+        dst_ptr := $1B
+
+        sta     ALTZPOFF
+        lda     ROMIN
+        lda     ROMIN
+        lda     #>src
+        sta     src_ptr+1
+        lda     #<src
+        sta     src_ptr
+        lda     #>dst
+        sta     dst_ptr+1
+        lda     #<dst
+        sta     dst_ptr
+
+loop:   lda     (src_ptr)
+        sta     (dst_ptr)
+        inc     src_ptr
+        bne     :+
+        inc     src_ptr+1
+:       inc     dst_ptr
+        bne     :+
+        inc     dst_ptr+1
+:       lda     src_ptr+1
+        cmp     #>end
+        bne     loop
+        lda     src_ptr
+        cmp     #<end
+        bne     loop
+        lda     (src_ptr)
+        sta     (dst_ptr)
+        sta     ALTZPOFF
+        sta     ROMINWB1
+        sta     ROMINWB1
+
+        rts
+.endproc
+
 
 ;;; ------------------------------------------------------------
 ;;; Selector
 ;;; ------------------------------------------------------------
 
-        .org    $1000
+        install_src := *
+
+        pushorg $1000
 .proc bbb
 
         prefix  := $280         ; length-prefixed
@@ -606,71 +653,10 @@ trans:  .word   0
 
 ;;; ------------------------------------------------------------
 
-        .res    $13FF-*-2, 0
-        .byte   $48,$AD         ; 72, 173 ???
-
 .endproc
-        .assert .sizeof(bbb) = $3FF, error, "Expected size is $3FF"
+        install_size = $300
+        poporg
 
-;;; ------------------------------------------------------------
-;;; Installer
-;;; ------------------------------------------------------------
-
-        .org    $2402
-
-.proc install_and_quit
-        jsr     install
-        MLI_CALL QUIT, params
-
-.proc params
-params: .byte   4
-type:   .byte   0
-res1:   .word   0
-res2:   .byte   0
-res3:   .addr   0
-.endproc
-.endproc
-
-;;; ------------------------------------------------------------
-
-.proc install
-        src := install_src
-        end := install_src + .sizeof(bbb)
-        dst := $D100            ; Install location in ProDOS (bank 2)
-
-        src_ptr := $19
-        dst_ptr := $1B
-
-        sta     ALTZPOFF
-        lda     ROMIN
-        lda     ROMIN
-        lda     #>src
-        sta     src_ptr+1
-        lda     #<src
-        sta     src_ptr
-        lda     #>dst
-        sta     dst_ptr+1
-        lda     #<dst
-        sta     dst_ptr
-
-loop:   lda     (src_ptr)
-        sta     (dst_ptr)
-        inc     src_ptr
-        bne     :+
-        inc     src_ptr+1
-:       inc     dst_ptr
-        bne     :+
-        inc     dst_ptr+1
-:       lda     src_ptr+1
-        cmp     #>end
-        bne     loop
-        lda     src_ptr
-        cmp     #<end
-        bne     loop
-        lda     (src_ptr)
-        sta     (dst_ptr)
-        sta     ALTZPOFF
-        sta     ROMINWB1
-        sta     ROMINWB1
-        rts
-.endproc
+;;; ************************************************************
+        .include "../inc/driver_postamble.inc"
+;;; ************************************************************

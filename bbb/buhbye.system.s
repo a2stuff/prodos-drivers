@@ -34,7 +34,7 @@
 ;;; Installer
 ;;; ------------------------------------------------------------
 
-        install_size := $300    ; must fit in $D100...$D3FF = $300
+        max_size = $300
 
 .proc maybe_install_driver
 
@@ -667,7 +667,8 @@ cout:   jmp     COUT
 ;;; ------------------------------------------------------------
 
 .endproc
-        .assert .sizeof(selector) <= install_size, error, "Must fit in $300 bytes"
+        .assert .sizeof(selector) <= max_size, error, "Must fit in $300 bytes"
+        install_size = .sizeof(selector)
         poporg
 
 ;;; ************************************************************

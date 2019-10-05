@@ -42,7 +42,9 @@ Since I really liked the look of _Bird's Better Bye_ I used this as
 the boot system for my virtual hard drive (occuring after some [clock
 drivers](https://github.com/a2stuff/cricket)).
 
-## Buh-Bye
+This is a modified version that chains to the next `.SYSTEM` file instead of immediately launching the selector. You can follow it with `QUIT.SYSTEM` in your driver sequence if you want to show the selector on startup.
+
+## BUHBYE.SYSTEM
 
 But... I really wanted a way to quickly scroll through my games list.
 So I set out to improve _Bird's Better Bye_ by disassembling it (and
