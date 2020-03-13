@@ -5,18 +5,11 @@
 
 set -e
 
-PACKDIR="out/package"
-FINFO="$PACKDIR/_FileInformation.txt"
-IMGFILE="out/prodos-path.po"
-VOLNAME="path"
-
-mkdir -p "$PACKDIR"
-echo "" > "$FINFO"
-
-# Create a new disk image.
+PACKDIR=$(mktemp -d)
+IMGFILE="drivers.po"
+VOLNAME="drivers"
 
 rm -f "$IMGFILE"
-
 cadius CREATEVOLUME "$IMGFILE" "$VOLNAME" 140KB --no-case-bits --quiet
 
 add_file () {
