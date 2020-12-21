@@ -411,7 +411,21 @@ install_success:
 
         jsr     HOME
         jsr     zstrout
-        scrcode "\r\r\r", PRODUCT, " - Installed"
+        scrcode "\r\r\r", PRODUCT, " - "
+        .byte   0
+
+        ;; Initialize Applesoft zero page locations required by LINPRNT
+        copy    #0, SHIFT_SIGN_EXT ; required by FP routines
+        copy    #TEMPST, TEMPPT    ; string descriptor pointer
+        copy    #1, SPEEDZ         ; output delay
+        copy    #0, FLASH_BIT      ; character set mask
+
+        ldx     vol_dir_header+VolumeDirectoryHeader::total_blocks
+        lda     vol_dir_header+VolumeDirectoryHeader::total_blocks+1
+        jsr     LINPRNT
+
+        jsr     zstrout
+        scrcode " Blocks"
         .byte   0
 
         rts

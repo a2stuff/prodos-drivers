@@ -69,9 +69,26 @@ SETVID          := $FE93
 BELL            := $FF3A
 
 ;;; ============================================================
+;;; Applesoft ROM routines
+;;; ============================================================
+;;; These require various ZP locations to be initialized.
+
+LINPRNT         := $ED24        ; print X,A as integer
+
+;;; ============================================================
 ;;; Well-known RAM locations
 ;;; ============================================================
 
 INPUT_BUFFER    := $200
 RESETVEC        := $3F2
 COL80HPOS       := $57B
+
+;;; ============================================================
+;;; Applesoft Zero Page Locations
+;;; ============================================================
+
+TEMPPT          := $52
+TEMPST          := $55
+SHIFT_SIGN_EXT  := $A4
+SPEEDZ          := $F1
+FLASH_BIT       := $F3
