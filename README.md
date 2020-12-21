@@ -11,8 +11,8 @@ The ProDOS operating system for the Apple II executes the first `.SYSTEM` file f
 * RAM Disk drivers (e.g. RamWorks)
   * In ProDOS 1.x, 2.0 and 2.4 only a 64K driver for /RAM is built-in.
 * Quit dispatcher/selector (`BYE` routines)
-  * In ProDOS 1.x a selector prompting `ENTER PREFIX (PRESS "RETURN" TO ACCEPT)` asked for a path.
-  * In ProDOS 2.0 [Bird's Better Bye](bbb) is built-in.
+  * In ProDOS 1.0 through 1.7 a simple selector prompting `ENTER PREFIX (PRESS "RETURN" TO ACCEPT)` asked for a path.
+  * In ProDOS 1.9 and 2.0 [Bird's Better Bye](bbb) is built-in.
   * In ProDOS 2.4 [Bitsy Bye](https://prodos8.com/bitsy-bye/) is built-in.
 
 Early versions of these drivers would often invoke a specific file on completion, sometimes user-configurable. The best versions of these drivers simply execute the following `.SYSTEM` file, although this is non-trivial code and often did not work with network drives.
