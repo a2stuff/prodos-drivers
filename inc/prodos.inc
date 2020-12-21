@@ -117,6 +117,7 @@ ST_VOLUME_DIRECTORY     = $0F
 ;;; Errors
 ;;; ============================================================
 
+ERR_IO_ERROR          = $27
 ERR_DEVICE_NOT_CONNECTED = $28
 ERR_WRITE_PROTECTED   = $2B
 ERR_INVALID_PATHNAME  = $40

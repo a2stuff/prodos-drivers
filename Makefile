@@ -1,4 +1,4 @@
-targets := ns.clock cricket bbb ram.drv quit
+targets := ns.clock cricket bbb selector ram.drv quit
 
 .PHONY: all $(targets)
 

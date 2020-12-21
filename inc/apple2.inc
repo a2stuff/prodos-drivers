@@ -55,6 +55,8 @@ TABV            := $FB5B
 SETPWRC         := $FB6F
 BELL1           := $FBDD
 HOME            := $FC58
+CLREOL          := $FC9C
+RDKEY           := $FD0C
 GETLN           := $FD6A        ; with prompt character
 GETLN2          := $FD6F        ; no prompt character
 CROUT           := $FD8E
@@ -64,6 +66,7 @@ SETINV          := $FE80
 SETNORM         := $FE84
 SETKBD          := $FE89
 SETVID          := $FE93
+BELL            := $FF3A
 
 ;;; ============================================================
 ;;; Well-known RAM locations

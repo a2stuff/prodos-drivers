@@ -7,17 +7,17 @@
 The ProDOS operating system for the Apple II executes the first `.SYSTEM` file found in the boot directory on startup. A common pattern is to have the boot directory contain several "driver" files that customize ProDOS by installing drivers for hardware or modify specific parts of the operating system. These include:
 
 * Real-time Clock drivers (e.g. No-Slot Clock, Cricket!, AE DClock, etc)
-  * In ProDOS 1.x, 2.0 and 2.4 the Thunderclock driver is built-in. 
+  * In ProDOS 1.x, 2.0 and 2.4 the Thunderclock driver is built-in.
 * RAM Disk drivers (e.g. RamWorks)
   * In ProDOS 1.x, 2.0 and 2.4 only a 64K driver for /RAM is built-in.
 * Quit dispatcher/selector (`BYE` routines)
-  * In ProDOS 1.0 through 1.7 a simple selector prompting `ENTER PREFIX (PRESS "RETURN" TO ACCEPT)` asked for a path.
+  * In ProDOS 1.0 through 1.7 a simple [selector](selector) prompting `ENTER PREFIX (PRESS "RETURN" TO ACCEPT)` asked for a path.
   * In ProDOS 1.9 and 2.0 [Bird's Better Bye](bbb) is built-in.
   * In ProDOS 2.4 [Bitsy Bye](https://prodos8.com/bitsy-bye/) is built-in.
 
 Early versions of these drivers would often invoke a specific file on completion, sometimes user-configurable. The best versions of these drivers simply execute the following `.SYSTEM` file, although this is non-trivial code and often did not work with network drives.
 
-This repository collects several drivers and uses common code to chain to the next `.SYSTEM` file, suporting network drives. 
+This repository collects several drivers and uses common code to chain to the next `.SYSTEM` file, suporting network drives.
 
 ## How do you use these?
 
