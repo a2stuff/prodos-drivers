@@ -30,7 +30,7 @@ not require a 65C02 processor.
 Impressed though I am with the power of Bitsy Bye, I am not a fan of
 its aesthetics - the display is "cluttered" to my eye.
 
-## BYE.SYSTEM
+## BBB.SYSTEM
 
 Aeons ago, Dave Cotter created BYE.SYSTEM which would patch _Bird's
 Better Bye_ back into ProDOS if it had been replaced. It can be found

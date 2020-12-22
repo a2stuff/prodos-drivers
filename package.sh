@@ -19,7 +19,7 @@ add_file () {
 }
 
 add_file "bbb/out/buhbye.system.SYS"        "buhbye.system#FF0000"   "/$VOLNAME"
-add_file "bbb/out/bye.system.SYS"           "bye.system#FF0000"      "/$VOLNAME"
+add_file "bbb/out/bbb.system.SYS"           "bbb.system#FF0000"      "/$VOLNAME"
 add_file "selector/out/selector.system.SYS" "selector.system#FF0000" "/$VOLNAME"
 add_file "cricket/out/cricket.system.SYS"   "cricket.system#FF0000"  "/$VOLNAME"
 add_file "cricket/out/date.BIN"             "date#062000"            "/$VOLNAME/CRICKET.UTIL"

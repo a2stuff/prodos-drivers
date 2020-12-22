@@ -7,7 +7,7 @@ OUTDIR = out
 HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
 TARGETS = \
-	$(OUTDIR)/bye.system.SYS \
+	$(OUTDIR)/bbb.system.SYS \
 	$(OUTDIR)/buhbye.system.SYS
 
 # For timestamps
