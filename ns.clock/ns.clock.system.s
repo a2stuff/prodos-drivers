@@ -146,15 +146,18 @@ slot:   .byte   0
 .proc install_driver
         ptr := $A5
 
+        ;; Update absolute addresses within driver
         lda     DATETIME+1
         sta     ptr
         clc
         adc     #(unlock - driver - 1)
-        sta     ld3+1
+        sta     unlock_addr
         lda     DATETIME+2
         sta     ptr+1
         adc     #0
-        sta     ld3+2
+        sta     unlock_addr+1
+
+        ;; Copy driver into appropriate bank
         lda     RWRAM1
         lda     RWRAM1
         ldy     #sizeof_driver-1
@@ -227,7 +230,8 @@ ld1:    lda     $C304           ; self-modified
 
         ;; Unlock the NSC by bit-banging.
 uloop:
-ld3:    lda     unlock-1,x      ; self-modified
+        unlock_addr := *+1
+        lda     unlock-1,x      ; self-modified
         sec
         ror     a               ; a bit at a time
 :       pha

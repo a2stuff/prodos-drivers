@@ -27,6 +27,7 @@ add_file "cricket/out/set.date.BIN"         "set.date#062000"        "/$VOLNAME/
 add_file "cricket/out/set.time.BIN"         "set.time#062000"        "/$VOLNAME/CRICKET.UTIL"
 add_file "cricket/out/test.BIN"             "test#062000"            "/$VOLNAME/CRICKET.UTIL"
 add_file "ns.clock/out/ns.clock.system.SYS" "ns.clock.system#FF0000" "/$VOLNAME"
+add_file "dclock/out/dclock.system.SYS"     "dclock.system#FF0000"   "/$VOLNAME"
 add_file "quit/out/quit.system.SYS"         "quit.system#FF0000"     "/$VOLNAME"
 add_file "ram.drv/out/ram.drv.system.SYS"   "ram.drv.system#FF0000"  "/$VOLNAME"
 
