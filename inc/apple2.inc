@@ -64,6 +64,7 @@ GETLN2          := $FD6F        ; no prompt character
 CROUT           := $FD8E
 PRBYTE          := $FDDA
 COUT            := $FDED
+COUT1           := $FDF0
 SETINV          := $FE80
 SETNORM         := $FE84
 SETKBD          := $FE89

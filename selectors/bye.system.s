@@ -1,9 +1,7 @@
-;;; Disassembly of BYE.SYSTEM (Bird's Better Bye)
-;;; Modifications by Joshua Bell inexorabletash@gmail.com
-;;; (so this is Bell's Better Bird's Better Bye - Buh-Bye)
-;;;  * alpha key advances to next matching filename
-;;;  * replaced directory enumeration (smaller, per PDTRM)
-;;;  * installs, then chains to next .SYSTEM file
+;;; Disassembly of the ProDOS 8 Selector ("BYE") found in ProDOS 1.9
+;;; and 2.0.x and installed automatically for 80-column systems.
+;;;
+;;; Installer wrapper added by Joshua Bell inexorabletash@gmail.com
 
         .setcpu "65C02"
         .linecont +
@@ -45,44 +43,41 @@
         src_ptr := $19
         dst_ptr := $1B
 
-        sta     ALTZPOFF        ; TODO: Necessary?
-        lda     ROMIN           ; write bank 2
+        sta     ALTZPOFF
         lda     ROMIN
-
-        lda     #<src           ; src_ptr = src
-        sta     src_ptr
+        lda     ROMIN
         lda     #>src
         sta     src_ptr+1
-
-        lda     #<dst           ; dst_ptr = dst
-        sta     dst_ptr
+        lda     #<src
+        sta     src_ptr
         lda     #>dst
         sta     dst_ptr+1
+        lda     #<dst
+        sta     dst_ptr
 
-loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
+loop:   lda     (src_ptr)
         sta     (dst_ptr)
-
-        inc     src_ptr         ; src_ptr++
+        inc     src_ptr
         bne     :+
         inc     src_ptr+1
-
-:       inc     dst_ptr         ; dst_ptr++
+:       inc     dst_ptr
         bne     :+
         inc     dst_ptr+1
-
-:       lda     src_ptr+1       ; src_ptr == end ?
+:       lda     src_ptr+1
         cmp     #>end
         bne     loop
         lda     src_ptr
         cmp     #<end
         bne     loop
-
-        sta     ALTZPOFF        ; TODO: Necessary?
+        lda     (src_ptr)
+        sta     (dst_ptr)
+        sta     ALTZPOFF
         sta     ROMINWB1
         sta     ROMINWB1
 
         rts
 .endproc
+
 
 ;;; ------------------------------------------------------------
 ;;; Selector
@@ -91,44 +86,48 @@ loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
         install_src := *
 
         pushorg $1000
-.proc selector
+.proc bbb
 
-        prefix          := $280 ; length-prefixed
+        prefix  := $280         ; length-prefixed
 
         filenames       := $1400 ; each is length + 15 bytes
         read_buffer     := $2000 ; Also, start location for launched SYS files
 
-        ;; Device/Prefix enumeration
-        next_device_num := $65  ; next device number to try
-        prefix_depth    := $6B  ; 0 = root
+        mark_params     := $60
+        mark_ref_num    := $61
+        mark_position   := $62  ; 3-bytes
 
-        ;; Directory enumeration
-        entry_pointer   := $60  ; 2 bytes
-        block_entries   := $62
-        active_entries  := $63  ; 2 bytes
+        next_device_num := $65  ; next device number to try
+
+        current_entry   := $67  ; index of current entry
+        num_entries     := $68  ; length of |filenames|
+        curr_len        := $69  ; length of current entry name
+        curr_ptr        := $6C  ; address of current entry name (in |filenames|)
+
+        prefix_depth    := $6B  ; 0 = root
 
         entry_length    := $6E
         entries_per_block := $6F
         file_count      := $70  ; 2 bytes
+        entry_num       := $72
+        page_start      := $73  ; index of first entry shown on screen
 
-        ;; Found entries
-        current_entry   := $67  ; index of current entry
-        num_entries     := $68  ; length of |filenames| (max 128)
-        curr_len        := $69  ; length of current entry name
-        curr_ptr        := $6C  ; address of current entry name (in |filenames|)
+        max_entries     := 128  ; max # of entries; more are ignored
         types_table     := $74  ; high bit clear = dir, set = sys
 
-        ;; Entry display
-        page_start      := $73  ; index of first entry shown on screen
-        row_count       := $6A  ; number of rows in this page
         top_row         := 2    ; first row used on screen
         bottom_row      := 21   ; last row used on screen
-
 
 ;;; ------------------------------------------------------------
 
         cld                     ; ProDOS protocol for QUIT routine
         lda     ROMIN2          ; Page in ROM for reads, writes ignored
+
+        ;; Point reset vector at this routine
+        stz     RESETVEC
+        lda     #>bbb
+        sta     RESETVEC+1
+        jsr     SETPWRC         ; update validity check byte
 
         lda     #$A0
         jsr     SLOT3           ; Activate 80-Column Firmware
@@ -143,8 +142,10 @@ loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
         sta     BITMAP
 
         ;; Find device
-        lda     DEVCNT          ; max device num
-        sta     next_device_num
+        lda     #2
+        sta     mark_params
+        ldx     DEVCNT          ; max device num
+        stx     next_device_num
         lda     DEVNUM
         bne     check_device
 
@@ -174,142 +175,133 @@ check_device:
 .proc resize_prefix_and_open
         stx     prefix
         lda     #'/'
-        sta     prefix+1        ; ensure prefix is at least '/'
-        sta     prefix,x        ; and ends with '/'
-        stz     prefix+1,x      ; and is null terminated
+        sta     prefix+1
+        sta     prefix,x
+        stz     prefix+1,x
 
-        stz     num_entries
-
-;;; Enumerate directory
-;;; Algorithm from ProDOS Technical Reference Manual B.2.5
-
-        ;; Open the directory
-        jsr     do_open
+        MLI_CALL OPEN, open_params
         bcc     :+
 
         ;; Open failed
-fail:   lda     prefix_depth    ; root?
+        lda     prefix_depth    ; root?
         beq     next_device
+        jsr     BELL1           ; no, but failed; beep
         jsr     pop_prefix      ; and go up a level
-        bra     resize_prefix_and_open
+        stx     prefix
+        jmp     keyboard_loop
+
 
         ;; Open succeeded
 :       inc     prefix_depth
-
-        ;; Read a block (512 bytes) into buffer
-        stz     read_params_request
-        lda     #2
-        sta     read_params_request+1
+        stz     num_entries
+        lda     open_params_ref_num
+        sta     read_params_ref_num
+        sta     mark_ref_num
+        lda     #.sizeof(SubdirectoryHeader)
+        sta     read_params_request
+        stz     read_params_request+1
         jsr     do_read
-        bcs     fail
+        bcs     finish_read2
 
-        ;; Store entry_length (byte), entries_per_block (byte), file_count (word)
+        ;; Store entry_length/entries_per_block/file_count
         ldx     #3
 :       lda     read_buffer + SubdirectoryHeader::entry_length,x
         sta     entry_length,x
         dex
         bpl     :-
 
-        ;; Any entries?
+        sta     read_params_request
+        lda     #1
+        sta     entry_num
+        stz     mark_position+1
+        stz     mark_position+2
+
         lda     file_count
         ora     file_count+1
-        beq     close_dir
+        bne     next_file_entry ; any files?
 
-        ;; Skip header entry
+finish_read2:
+        bra     finish_read
+
+next_file_entry:
+        bit     file_count+1    ; wrap around?
+        bmi     finish_read2
+
+
+        ;; TODO: The math here is mysterious; understand and document
+floop:  lda     mark_position+1
+        and     #$FE
+        sta     mark_position+1
+        ldy     entry_num
+        lda     #0
+        cpy     entries_per_block
+        bcc     :+
+        tay
+        sty     entry_num
+
+        inc     mark_position+1
+carry:  inc     mark_position+1
+:       dey
         clc
-        lda     #<(read_buffer+4) ; 4 bytes for prev/next pointers
+        bmi     :+
         adc     entry_length
-        sta     entry_pointer
-        lda     #>(read_buffer+4)
-        adc     #0              ; TODO: Can skip this if entry_length << 256
-        sta     entry_pointer+1
+        bcc     :-
+        bcs     carry
 
-        ;; Prepare to process entry two (first "entry" is header)
-        lda     #2
-        sta     block_entries
+:       adc     #4
+        sta     mark_position
+        MLI_CALL SET_MARK, mark_params
+        bcs     finish_read2
+        jsr     do_read
+        bcs     finish_read2
 
-while_loop:
-        ;; Check if entry is active
-        lda     (entry_pointer)
-        beq     done_entry
+        inc     entry_num
+        lda     read_buffer + FileEntry::storage_type_name_length
+        and     #$F0            ; mask off storage_type
+        beq     floop           ; inactive file entry
+        dec     file_count
+        bne     :+
+        dec     file_count+1
+
+        ;; Check read access
+:       ror     read_buffer + FileEntry::access
+        bcc     next_file_entry
 
         ;; Check file type
-        ldy     #FileEntry::file_type
-        lda     (entry_pointer),y
+        lda     read_buffer + FileEntry::file_type
         cmp     #FT_DIRECTORY
-        beq     store_entry
+        beq     :+
         cmp     #FT_SYSTEM
-        bne     done_active_entry
+        bne     next_file_entry
 
-store_entry:
+        ;; Check to see if we have room
+:       ldx     num_entries
+        cpx     #max_entries
+        bcs     finish_read
+
         ;; Store type
-        ldx     num_entries
         sta     types_table,x
 
-        ;; Copy name into |filenames|
-        jsr     update_curr_ptr ; current entry in X
-        ldy     #15             ; max name length (length byte copied too)
-:       lda     (entry_pointer),y
+        ;; Copy name
+        jsr     update_curr_ptr
+        ldy     #$0F            ; name length + 1 (includes length byte)
+:       lda     read_buffer,y
         sta     (curr_ptr),y
         dey
         bpl     :-
-        iny                     ; Y = 0; storage_type/name_length in A
-        and     #%00001111      ; mask off name_length (remove storage_type)
+        iny                     ; Y = 0
+        and     #$0F            ; mask off name length (remove storage_type)
         sta     (curr_ptr),y    ; store length
 
+        ;; Next
         inc     num_entries
+        bne     next_file_entry
 
-done_active_entry:
-        dec     file_count
-        bpl     :+
-        dec     file_count+1
-:
+next:   jmp     next_device
 
-done_entry:
-        ;;  Seen all active entries?
-        lda     file_count
-        ora     file_count+1
-        beq     close_dir
-
-        ;; Seen all entries in this block?
-        lda     block_entries
-        cmp     entries_per_block
-        bne     next_in_block
-
-        ;; Grab next block
-next_block:
-        jsr     do_read         ; read another block
-        bcs     fail
-
-        lda     #1              ; first entry in non-key block
-        sta     block_entries
-
-        lda     #<(read_buffer+4) ; 4 bytes for prev/next pointers
-        sta     entry_pointer
-        lda     #>(read_buffer+4)
-        sta     entry_pointer+1
-
-        bra     end_while
-
-        ;; Next entry in current block
-next_in_block:
-        clc
-        lda     entry_pointer
-        adc     entry_length
-        sta     entry_pointer
-        lda     entry_pointer+1
-        adc     #0
-        sta     entry_pointer+1
-
-        inc     block_entries
-
-end_while:
-        ;; Check to see if we have room
-        bit     num_entries     ; max is 128
-        bpl     while_loop
-
-close_dir:
+finish_read:
         MLI_CALL CLOSE, close_params
+        bcs     next
         ;; fall through
 .endproc
 
@@ -322,10 +314,9 @@ close_dir:
         jsr     TABV
 
         ;; Print help text
+        ldy     #0
         lda     #20             ; HTAB 20
-        sta     CH
-        ldy     #(help_string - text_resources)
-        jsr     cout_string
+        jsr     cout_string_hpos
 
         ;; Draw prefix
         jsr     home
@@ -339,17 +330,18 @@ close_dir:
 :       stz     current_entry
         stz     page_start
         lda     num_entries
-        beq     selection_loop_keyboard_loop   ; no entries (empty directory)
+        beq     keyboard_loop   ; no entries (empty directory)
 
-        ;; Draw entries
+        row_count := $6A
+
         cmp     #bottom_row     ; more entries than fit?
         bcc     :+
         lda     #(bottom_row - top_row + 1)
 :       sta     row_count
-        lda     #top_row
+        lda     #2
         sta     WNDTOP
         sta     WNDLFT
-        lda     #bottom_row+1
+        lda     #22
         sta     WNDWDTH
         sta     WNDBTM
 loop:   jsr     draw_current_line
@@ -357,7 +349,85 @@ loop:   jsr     draw_current_line
         dec     row_count
         bne     loop
         stz     current_entry
-        beq     selection_loop
+        beq     draw_current_line_inv
+.endproc
+
+;;; ------------------------------------------------------------
+
+.proc on_up
+        jsr     draw_current_line ; clear inverse selection
+
+        ldx     current_entry
+        beq     draw_current_line_inv ; first one? just redraw
+        dec     current_entry         ; go to previous
+
+        lda     CV
+        cmp     #top_row        ; at the top?
+        bne     draw_current_line_inv ; if not, just draw
+        dec     page_start      ; yes, adjust page and
+        lda     #ASCII_SYN      ; scroll screen up
+        bne     draw_current_line_with_char
+.endproc
+
+;;; ------------------------------------------------------------
+
+.proc on_down
+        jsr     draw_current_line ; clear inverse selection
+
+        ldx     current_entry
+        inx
+        cpx     num_entries           ; past the limit?
+        bcs     draw_current_line_inv ; yes, just redraw
+        stx     current_entry         ; go to next
+
+        lda     CV
+        cmp     #bottom_row     ; at the bottom?
+        bne     draw_current_line_inv ; if not, just draw
+        inc     page_start      ; yes, adjust page and
+        lda     #ASCII_ETB      ; scroll screen down
+        ;; fall through
+.endproc
+
+;;; ------------------------------------------------------------
+
+draw_current_line_with_char:
+        jsr     COUT
+
+draw_current_line_inv:
+        jsr     SETINV
+        jsr     draw_current_line
+        ;; fall through
+
+;;; ------------------------------------------------------------
+
+.proc keyboard_loop
+        lda     KBD
+        bpl     keyboard_loop
+        sta     KBDSTRB
+        jsr     SETNORM
+        ldx     num_entries
+        beq     :+              ; no up/down/return if empty
+
+        cmp     #HI(ASCII_CR)
+        beq     on_return
+        cmp     #HI(ASCII_DOWN)
+        beq     on_down
+        cmp     #HI(ASCII_UP)
+        beq     on_up
+
+:       cmp     #HI(ASCII_TAB)
+        beq     next_drive
+        cmp     #HI(ASCII_ESCAPE)
+        bne     keyboard_loop
+        ;; fall through
+.endproc
+
+;;; ------------------------------------------------------------
+
+.proc on_escape
+        jsr     pop_prefix      ; leaves length in X
+        dec     prefix_depth
+        bra     resize_prefix_and_open_jmp
 .endproc
 
 ;;; ------------------------------------------------------------
@@ -372,114 +442,12 @@ loop:   dex
         cpx     #1
         bne     done
         ldx     prefix
-done:
-        ;; Fall through...
-.endproc
-
-handy_rts:
-        rts
-
-;;; ------------------------------------------------------------
-
-.proc on_down
-        jsr     down_common
-        bra     selection_loop
+done:   rts
 .endproc
 
 ;;; ------------------------------------------------------------
 
-.proc on_up
-        ldx     current_entry   ; first one?
-        beq     selection_loop
-        dec     current_entry   ; go to previous
-
-        lda     CV
-        cmp     #top_row        ; at the top?
-        bne     selection_loop
-        dec     page_start      ; yes, adjust page and
-        lda     #ASCII_SYN      ; scroll screen up
-        jsr     COUT
-        ;; fall through
-.endproc
-
-;;; ------------------------------------------------------------
-
-.proc selection_loop
-        jsr     SETINV
-        jsr     draw_current_line
-
-keyboard_loop:
-        lda     KBD
-        bpl     keyboard_loop
-        sta     KBDSTRB
-        jsr     SETNORM
-
-        cmp     #HI(ASCII_TAB)
-        beq     next_drive
-        cmp     #HI(ASCII_ESCAPE)
-        beq     on_escape
-
-        ldx     num_entries
-        beq     keyboard_loop   ; if empty, no navigation
-
-        pha
-        jsr     draw_current_line
-        pla
-
-        cmp     #HI(ASCII_CR)
-        beq     on_return
-        cmp     #HI(ASCII_DOWN)
-        beq     on_down
-        cmp     #HI(ASCII_UP)
-        beq     on_up
-        ;; fall through
-.endproc
-        selection_loop_keyboard_loop := selection_loop::keyboard_loop
-
-;;; ------------------------------------------------------------
-
-.proc on_alpha
-loop:   jsr     down_common
-        jsr     draw_current_line
-        lda     KBD
-        and     #$5F            ; make ASCII and uppercase
-        ldy     #1
-        cmp     (curr_ptr),y    ; key = first char ?
-        beq     selection_loop
-        bra     loop
-.endproc
-
-;;; ------------------------------------------------------------
-
-.proc on_escape
-        jsr     pop_prefix      ; leaves length in X
-        dec     prefix_depth
-        bra     resize_prefix_and_open_jmp
-.endproc
-
-;;; ------------------------------------------------------------
-.proc down_common
-        lda     current_entry
-        inc     a
-        cmp     num_entries     ; past the limit?
-        bcc     :+
-        pla                     ; yes - abort subroutine
-        pla
-        bra     selection_loop
-
-:       sta     current_entry   ; go to next
-
-        lda     CV
-        cmp     #bottom_row     ; at the bottom?
-        bne     handy_rts
-        inc     page_start      ; yes, adjust page and
-        lda     #ASCII_ETB      ; scroll screen down
-        jmp     COUT            ; implicit rts
-.endproc
-
-;;; ------------------------------------------------------------
-
-next_drive:                     ; relay for branches
+next_drive:
         jmp     next_device
 
 inc_resize_prefix_and_open:
@@ -518,11 +486,13 @@ resize_prefix_and_open_jmp:
 .proc launch_sys_file
         jsr     SETTXT
         jsr     HOME
-        lda     #HI(ASCII_RIGHT) ; Right arrow ???
+        lda     #HI(ASCII_RIGHT) ; Right arrow
         jsr     COUT
 
-        jsr     do_open
+        MLI_CALL OPEN, open_params
         bcs     next_drive
+        lda     open_params_ref_num
+        sta     read_params_ref_num
         lda     #$FF            ; Load up to $FFFF bytes
         sta     read_params_request
         sta     read_params_request+1
@@ -536,18 +506,22 @@ resize_prefix_and_open_jmp:
 
 ;;; ------------------------------------------------------------
 
+cout_string_hpos:
+        sta     CH
+
 .proc cout_string
 loop:   lda     help_string,y
-        beq     handy_rts2
+        beq     done
         jsr     COUT
         iny
-        bra     loop
+        bne     loop
+done:   rts
 .endproc
 
 ;;; ------------------------------------------------------------
 
 ;; Compute address/length of curr_ptr/curr_len
-;; Call with entry index in X. Returns with Y = 0
+;; Call with entry index in X.
 
 .proc update_curr_ptr
         stz     curr_ptr+1
@@ -568,11 +542,8 @@ loop:   lda     help_string,y
         ldy     #0
         lda     (curr_ptr),y
         sta     curr_len
-        ;; fall through
-.endproc
-
-handy_rts2:
         rts
+.endproc
 
 ;;; ------------------------------------------------------------
 
@@ -595,12 +566,12 @@ handy_rts2:
         stz     COL80HPOS
         lda     INVFLG
         pha
-        ldy     #(folder_string - text_resources) ; Draw folder glyphs
+        ldy     #(folder_string - string_start) ; Draw folder glyphs
         jsr     cout_string
         pla
         sta     INVFLG
 
-        ;; Draw the name
+        ;;  Draw the name
 name:   jsr     space
         jsr     update_curr_ptr
 loop:   iny
@@ -611,6 +582,7 @@ loop:   iny
 
 space:  lda     #HI(' ')
         bne     cout            ; implicit RTS
+        ;; fall through
 .endproc
 
 home:   lda     #HI(ASCII_EM)   ; move cursor to top left
@@ -622,13 +594,6 @@ cout:   jmp     COUT
 
 ;;; ------------------------------------------------------------
 
-.proc do_open
-        MLI_CALL OPEN, open_params
-        lda     open_params_ref_num
-        sta     read_params_ref_num
-        rts
-.endproc
-
 .proc do_read
         MLI_CALL READ, read_params
         rts
@@ -636,8 +601,7 @@ cout:   jmp     COUT
 
 ;;; ------------------------------------------------------------
 
-        text_resources := *
-
+        string_start := *
 .proc help_string
         scrcode "RETURN: Select | TAB: Chg Vol | ESC: Back"
         .byte   0
@@ -651,25 +615,47 @@ cout:   jmp     COUT
 
 ;;; ------------------------------------------------------------
 
-        DEFINE_OPEN_PARAMS open_params, prefix, $1C00
+.proc open_params
+params: .byte   3
+path:   .addr   prefix
+buffer: .addr   $1C00
+ref_num:.byte   0
+.endproc
         open_params_ref_num := open_params::ref_num
 
-        DEFINE_CLOSE_PARAMS close_params
+.proc close_params
+params: .byte   1
+ref_num:.byte   0
+.endproc
 
-        DEFINE_ON_LINE_PARAMS on_line_params, $60, prefix+1
-        on_line_params_unit := on_line_params::unit_num
+.proc on_line_params
+params: .byte   2
+unit:   .byte   $60
+buffer: .addr   prefix+1
+.endproc
+        on_line_params_unit := on_line_params::unit
 
-        DEFINE_SET_PREFIX_PARAMS set_prefix_params, prefix
+.proc set_prefix_params
+params: .byte   1
+path:   .addr   prefix
+.endproc
 
-        DEFINE_READ_PARAMS read_params, read_buffer, 0
+.proc read_params
+params: .byte   4
+ref_num:.byte   1
+buffer: .word   read_buffer
+request:.word   0
+trans:  .word   0
+.endproc
         read_params_ref_num := read_params::ref_num
-        read_params_request := read_params::request_count
+        read_params_request := read_params::request
+
+        .assert read_params::request - bbb <= $300, error, "Must fit in $300 bytes"
 
 ;;; ------------------------------------------------------------
 
 .endproc
-        .assert .sizeof(selector) <= max_size, error, "Must fit in $300 bytes"
-        install_size = .sizeof(selector)
+        install_size = $300
         poporg
 
 ;;; ************************************************************

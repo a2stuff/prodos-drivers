@@ -1,6 +1,9 @@
-;;; Disassembly of ProDOS 1.x's QUIT handler (program selector)
-;;; Modifications by Joshua Bell inexorabletash@gmail.com
-;;;  * installs, then chains to next .SYSTEM file
+;;; Disassembly of ProDOS QUIT handler (program selector)
+;;; This is a 40-column selector that prompts for prefix/pathname,
+;;; installed by default except on 80-column systems in 1.9 and
+;;; later.
+;;;
+;;; Installer wrapper added by Joshua Bell inexorabletash@gmail.com
 
         .setcpu "6502"
         .linecont +

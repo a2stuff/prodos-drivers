@@ -11,9 +11,9 @@ The ProDOS operating system for the Apple II executes the first `.SYSTEM` file f
 * RAM Disk drivers (e.g. RamWorks)
   * In ProDOS 1.x, 2.0 and 2.4 only a 64K driver for /RAM is built-in.
 * Quit dispatcher/selector (`BYE` routines)
-  * In ProDOS 1.0 through 1.7 a simple [selector](selector) prompting `ENTER PREFIX (PRESS "RETURN" TO ACCEPT)` asked for a path.
-  * In ProDOS 1.9 and 2.0 [Bird's Better Bye](bbb) is built-in.
-  * In ProDOS 2.4 [Bitsy Bye](https://prodos8.com/bitsy-bye/) is built-in.
+  * In ProDOS 1.0 and later, a 40-column friendly [selector](selector) prompts for a prefix then a path `ENTER PREFIX (PRESS "RETURN" TO ACCEPT)`
+  * In ProDOS 1.9 and 2.0.x, on 80-column systems, a menu-driven selector is installed instead.
+  * In ProDOS 2.4.x [Bitsy Bye](https://prodos8.com/bitsy-bye/) is built-in.
 
 Early versions of these drivers would often invoke a specific file on completion, sometimes user-configurable. The best versions of these drivers simply execute the following `.SYSTEM` file, although this is non-trivial code and often did not work with network drives.
 
@@ -30,9 +30,10 @@ This repo includes The following drivers/modifications:
 * RAM Disk drivers
   * RAMWorks Driver by Glen E. Bredon
 * Quit dispatcher/selector (`BYE` routines)
-  * Selector (from ProDOS 1.x)
-  * Bird's Better Bye (from ProDOS 2.0)
-  * Buh-Bye (an enhanced version of Bird's Better Bye)
+  * 40-column Selector (from ProDOS)
+  * 80-column menu-driven Selector (from ProDOS 1.9 and 2.x)
+  * Bird's Better Bye (a 40-column menu-driven selector)
+  * Buh-Bye (an enhanced version of the ProDOS 80-column, menu-driven selector)
 
 In addition, `QUIT.SYSTEM` is present which isn't a driver but which immediately invokes the QUIT handler (a.k.a. program selector).
 
