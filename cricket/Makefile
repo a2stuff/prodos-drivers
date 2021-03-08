@@ -20,6 +20,8 @@ DD = $(shell date "+%-d")
 YY = $(shell date "+%-y")
 DEFINES = -D DD=$(DD) -D MM=$(MM) -D YY=$(YY)
 
+XATTR := $(shell command -v xattr 2> /dev/null)
+
 .PHONY: clean all
 all: $(OUTDIR) $(TARGETS)
 
@@ -36,4 +38,6 @@ $(OUTDIR)/%.o: %.s $(HEADERS)
 
 $(OUTDIR)/%.BIN $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<
-	if command -v xattr &> /dev/null; then xattr -wx prodos.AuxType '00 20' $@; fi
+ifdef XATTR
+	xattr -wx prodos.AuxType '00 20' $@
+endif
