@@ -1,6 +1,6 @@
 # ProDOS Drivers
 
-[![Build Status](https://travis-ci.org/a2stuff/prodos-drivers.svg?branch=master)](https://travis-ci.org/a2stuff/prodos-drivers)
+[![Build Status](https://travis-ci.com/a2stuff/prodos-drivers.svg?branch=master)](https://travis-ci.com/a2stuff/prodos-drivers)
 
 # What are ProDOS "drivers"?
 
