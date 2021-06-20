@@ -1,6 +1,8 @@
 # ProDOS Drivers
 
-[![Build Status](https://travis-ci.com/a2stuff/prodos-drivers.svg?branch=master)](https://travis-ci.com/a2stuff/prodos-drivers)
+[![build](https://github.com/a2stuff/prodos-drivers/actions/workflows/main.yml/badge.svg)](https://github.com/a2stuff/prodos-drivers/actions/workflows/main.yml)
+
+Build with [ca65](https://cc65.github.io/doc/ca65.html)
 
 # What are ProDOS "drivers"?
 

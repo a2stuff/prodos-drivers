@@ -1,0 +1,29 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: build and install cc65 components
+        run: |
+          git clone https://github.com/cc65/cc65 /tmp/cc65
+          sudo make -C /tmp/cc65 ca65 ld65 avail
+          ca65 --version
+
+      - name: build
+        env:
+          TERM: xterm-256color
+        run: |
+          make
