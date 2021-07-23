@@ -1,6 +1,6 @@
 targets := ns.clock cricket dclock selectors ram.drv quit
 
-.PHONY: all $(targets)
+.PHONY: all $(targets) package
 
 all: $(targets)
 
@@ -17,3 +17,6 @@ clean:
 	  tput setaf 2 && echo "cleaning $$dir" && tput sgr0; \
 	  $(MAKE) -C $$dir clean; \
 	done
+
+package:
+	./package.sh

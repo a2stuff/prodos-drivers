@@ -6,7 +6,7 @@
 set -e
 
 PACKDIR=$(mktemp -d)
-IMGFILE="drivers.po"
+IMGFILE="prodos-drivers.po"
 VOLNAME="drivers"
 
 rm -f "$IMGFILE"
@@ -18,18 +18,19 @@ add_file () {
     cadius ADDFILE "$IMGFILE" "$3" "$PACKDIR/$2" --no-case-bits --quiet
 }
 
-add_file "bbb/out/buhbye.system.SYS"        "buhbye.system#FF0000"   "/$VOLNAME"
-add_file "bbb/out/bbb.system.SYS"           "bbb.system#FF0000"      "/$VOLNAME"
-add_file "selector/out/selector.system.SYS" "selector.system#FF0000" "/$VOLNAME"
-add_file "cricket/out/cricket.system.SYS"   "cricket.system#FF0000"  "/$VOLNAME"
-add_file "cricket/out/date.BIN"             "date#062000"            "/$VOLNAME/CRICKET.UTIL"
-add_file "cricket/out/set.date.BIN"         "set.date#062000"        "/$VOLNAME/CRICKET.UTIL"
-add_file "cricket/out/set.time.BIN"         "set.time#062000"        "/$VOLNAME/CRICKET.UTIL"
-add_file "cricket/out/test.BIN"             "test#062000"            "/$VOLNAME/CRICKET.UTIL"
-add_file "ns.clock/out/ns.clock.system.SYS" "ns.clock.system#FF0000" "/$VOLNAME"
-add_file "dclock/out/dclock.system.SYS"     "dclock.system#FF0000"   "/$VOLNAME"
-add_file "quit/out/quit.system.SYS"         "quit.system#FF0000"     "/$VOLNAME"
-add_file "ram.drv/out/ram.drv.system.SYS"   "ram.drv.system#FF0000"  "/$VOLNAME"
+add_file "cricket/out/cricket.system.SYS"    "cricket.system#FF0000"  "/$VOLNAME"
+add_file "cricket/out/date.BIN"              "date#062000"            "/$VOLNAME/CRICKET.UTIL"
+add_file "cricket/out/set.date.BIN"          "set.date#062000"        "/$VOLNAME/CRICKET.UTIL"
+add_file "cricket/out/set.time.BIN"          "set.time#062000"        "/$VOLNAME/CRICKET.UTIL"
+add_file "cricket/out/test.BIN"              "test#062000"            "/$VOLNAME/CRICKET.UTIL"
+add_file "dclock/out/dclock.system.SYS"      "dclock.system#FF0000"   "/$VOLNAME"
+add_file "ns.clock/out/ns.clock.system.SYS"  "ns.clock.system#FF0000" "/$VOLNAME"
+add_file "quit/out/quit.system.SYS"          "quit.system#FF0000"     "/$VOLNAME"
+add_file "ram.drv/out/ram.drv.system.SYS"    "ram.drv.system#FF0000"  "/$VOLNAME"
+add_file "selectors/out/bbb.system.SYS"      "bbb.system#FF0000"      "/$VOLNAME"
+add_file "selectors/out/buhbye.system.SYS"   "buhbye.system#FF0000"   "/$VOLNAME"
+add_file "selectors/out/bye.system.SYS"      "bye.system#FF0000"      "/$VOLNAME"
+add_file "selectors/out/selector.system.SYS" "selector.system#FF0000" "/$VOLNAME"
 
 rm -r "$PACKDIR"
 
