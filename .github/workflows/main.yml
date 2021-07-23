@@ -21,11 +21,7 @@ jobs:
           sudo make -C /tmp/cc65 ca65 ld65 avail &&
           ca65 --version
 
-      - name: build and install cadius
-        run: >
-          git clone https://github.com/mach-kernel/cadius /tmp/cadius &&
-          make -C /tmp/cadius &&
-          sudo make -C /tmp/cadius install
+      - uses: a2stuff/build-install-cadius-action@v1
 
       - name: build
         env:
