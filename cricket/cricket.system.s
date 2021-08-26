@@ -116,8 +116,8 @@ cricket_not_found:
 
 not_found:
         ;; Show failure message
-        jsr     zstrout
-        scrcode "\r\r\r", PRODUCT, " - Not Found."
+        jsr     log_message
+        scrcode PRODUCT, " - Not Found."
         .byte   0
         rts
 
@@ -205,8 +205,8 @@ loop:   lda     driver,y
         lda     ROMIN2
 
         ;; Display success message
-        jsr     zstrout
-        scrcode "\r\r\r", PRODUCT, " - Installed  "
+        jsr     log_message
+        scrcode PRODUCT, " - "
         .byte   0
 
         ;; Display the current date
@@ -234,7 +234,6 @@ loop:   lda     driver,y
 
         pla                     ; year
         jsr     cout_number
-        jsr     CROUT
 
         rts                     ; done!
 .endproc

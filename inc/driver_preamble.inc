@@ -66,7 +66,7 @@ load:   lda     src,y           ; self-modified
         ;; --------------------------------------------------
         ;; Identify the name of this SYS file, which should be present at
         ;; $280 with or without a path prefix. Search pathname buffer
-        ;; backwards for '/', then copy name into |self_name|.
+        ;; backwards for '/', then copy name into `self_name`.
 
         ;; Find '/' (which may not be present, prefix is optional)
         ldx     PATHNAME
@@ -80,7 +80,7 @@ load:   lda     src,y           ; self-modified
         dex
         bne     :-
 
-        ;; Copy name into |self_name| buffer
+        ;; Copy name into `self_name` buffer
 copy_name:
         cpy     #0
         beq     no_name
@@ -135,7 +135,6 @@ self_name:      .res    16
         jsr     INIT
         jsr     SETVID
         jsr     SETKBD
-        jsr     HOME
 
         ;; Update System Bit Map
         ldx     #BITMAP_SIZE-1
@@ -397,6 +396,15 @@ found_self_flag:
 ;;; ============================================================
 ;;; Common Routines
 ;;; ============================================================
+
+;;; ------------------------------------------------------------
+;;; Use this for logging the result of a driver. Uses `zstrout`.
+
+.proc log_message
+        jsr     CROUT
+        jsr     CROUT
+        ;; fall through
+.endproc
 
 ;;; ------------------------------------------------------------
 ;;; Output a high-ascii, null-terminated string.

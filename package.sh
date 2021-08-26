@@ -26,6 +26,7 @@ add_file "cricket/out/test.BIN"              "test#062000"            "/$VOLNAME
 add_file "dclock/out/dclock.system.SYS"      "dclock.system#FF0000"   "/$VOLNAME"
 add_file "ns.clock/out/ns.clock.system.SYS"  "ns.clock.system#FF0000" "/$VOLNAME"
 add_file "quit/out/quit.system.SYS"          "quit.system#FF0000"     "/$VOLNAME"
+add_file "pause/out/pause.system.SYS"        "pause.system#FF0000"    "/$VOLNAME"
 add_file "ram.drv/out/ram.drv.system.SYS"    "ram.drv.system#FF0000"  "/$VOLNAME"
 add_file "selectors/out/bbb.system.SYS"      "bbb.system#FF0000"      "/$VOLNAME"
 add_file "selectors/out/buhbye.system.SYS"   "buhbye.system#FF0000"   "/$VOLNAME"

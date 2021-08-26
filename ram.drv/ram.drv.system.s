@@ -409,9 +409,8 @@ finish: bit     ROMIN2
 install_success:
         sta     ALTZPOFF
 
-        jsr     HOME
-        jsr     zstrout
-        scrcode "\r\r\r", PRODUCT, " - "
+        jsr     log_message
+        scrcode PRODUCT, " - "
         .byte   0
 
         ;; Initialize Applesoft zero page locations required by LINPRNT
@@ -433,9 +432,8 @@ install_success:
 install_failure:
         sta     ALTZPOFF
 
-        jsr     HOME
-        jsr     zstrout
-        scrcode "\r\r\r", PRODUCT, " - Not Installed"
+        jsr     log_message
+        scrcode PRODUCT, " - Not Found"
         .byte   0
 
         rts
