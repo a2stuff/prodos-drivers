@@ -39,6 +39,8 @@ This repo includes The following drivers/modifications:
 
 In addition, `QUIT.SYSTEM` is present which isn't a driver but which immediately invokes the QUIT handler (a.k.a. program selector).
 
+There's also `PAUSE.SYSTEM` which just waits for a fraction of a second before invoking the next driver file. (Why? In case the log messages from the other installers goes by too fast!)
+
 Some date/time utilities for The Cricker! clock are also included.
 
 ## How do you use these?
@@ -51,6 +53,7 @@ The intent is that you use a tool like Copy II Plus or [Apple II DeskTop](https:
 * `CRICKET.SYSTEM` - install Cricket! clock driver, if present
 * `RAM.DRV.SYSTEM` - install RamWorks RAM disk driver, if present
 * `BUHBYE.SYSTEM` - install a customized Quit handler to replace the built-in one
+* `PAUSE.SYSTEM` - pause for a moment, so that you can inspect the output of the above
 * `QUIT.SYSTEM` - invoke the Quit handler immediately, as a program selector
 * `BASIC.SYSTEM` - which will not be automatically invoked, but is available to manually invoke
 
