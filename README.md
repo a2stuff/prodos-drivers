@@ -27,7 +27,7 @@ This repo includes The following drivers/modifications:
 
 * Real-time Clock drivers
   * No-Slot Clock
-  * Cricket!,
+  * Cricket!
   * Applied Engineering DClock
 * RAM Disk drivers
   * RAMWorks Driver by Glen E. Bredon
@@ -37,7 +37,7 @@ This repo includes The following drivers/modifications:
   * Bird's Better Bye (a 40-column menu-driven selector)
   * Buh-Bye (an enhanced version of the ProDOS 80-column, menu-driven selector)
 
-In addition, `QUIT.SYSTEM` is present which isn't a driver but which immediately invokes the QUIT handler (a.k.a. program selector).
+In addition, `QUIT.SYSTEM` is present which isn't a driver but which immediately invokes the QUIT handler (a.k.a. program selector). This will happen automatically if the last driver can't find another `.SYSTEM` file, but `QUIT.SYSTEM` can be used to stop the chain.
 
 There's also `PAUSE.SYSTEM` which just waits for a fraction of a second before invoking the next driver file. (Why? In case the log messages from the other installers goes by too fast!)
 
@@ -45,7 +45,7 @@ Some date/time utilities for The Cricker! clock are also included.
 
 ## How do you use these?
 
-The intent is that you use a tool like Copy II Plus or [Apple II DeskTop](https://github.com/a2stuff/a2d) to copy and arrange the SYSTEM files on your boot disk as you see fit. An example boot disk image catalog that is used on multiple different hardware configurations might include:
+The intent is that you use a tool like Copy II Plus or [Apple II DeskTop](https://github.com/a2stuff/a2d) to copy and arrange the SYSTEM files on your boot disk as you see fit. A boot disk image catalog that is used on multiple different hardware configurations might include:
 
 * `PRODOS` - the operating system, e.g. [ProDOS 2.4](https://prodos8.com/)
 * `NS.CLOCK.SYSTEM` - install No-Slot Clock driver, if present

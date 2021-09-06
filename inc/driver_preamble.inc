@@ -323,14 +323,6 @@ handle_sys_file:
         jmp     invoke_system_file
 
 not_found:
-        jsr     zstrout
-        scrcode "\r\r* Unable to find next '.SYSTEM' file *\r"
-        .byte   0
-
-        bit     KBDSTRB
-:       lda     KBD
-        bpl     :-
-        bit     KBDSTRB
         jmp     quit
 .endproc
 
