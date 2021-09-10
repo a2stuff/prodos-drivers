@@ -94,7 +94,7 @@ done:   rts
         lda     DATETIME+1
         sta     ptr
         clc
-        adc     #(regulk - driver - 1)
+        adc     #(regulk - driver)
         sta     regulk_addr
         lda     DATETIME+2
         sta     ptr+1
