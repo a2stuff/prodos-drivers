@@ -3,7 +3,7 @@
 ;;; http://www.apple2.org.za/gswv/a2zine/GS.WorldView/v1999/Oct/MISC/NSC.Disk.TXT
 
 ;;; Modification history available at:
-;;; https://github.com/a2stuff/cricket
+;;; https://github.com/a2stuff/prodos-drivers
 
         .setcpu "6502"
         .linecont +
@@ -186,30 +186,7 @@ loop:   lda     driver,y
         .byte   0
 
         ;; Display the current date
-        lda     DATELO+1        ; month
-        ror     a
-        pha
-        lda     DATELO
-        pha
-        rol     a
-        rol     a
-        rol     a
-        rol     a
-        and     #%00001111
-        jsr     cout_number
-
-        lda     #HI('/')        ; /
-        jsr     COUT
-
-        pla                     ; day
-        and     #%00011111
-        jsr     cout_number
-
-        lda     #HI('/')        ; /
-        jsr     COUT
-
-        pla                     ; year
-        jsr     cout_number
+        jsr     cout_date
 
         rts                     ; done!
 .endproc

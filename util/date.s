@@ -1,5 +1,4 @@
 ;;; Query ProDOS and print the current date/time
-;;; (No dependency on Cricket clock)
 
 ;;; Output is: MM/DD/YY  HH:MM
 
@@ -15,41 +14,17 @@
 start:
         MLI_CALL GET_TIME, 0
 
-;;; Standard format:
-;;;
-;;;           49041 ($BF91)     49040 ($BF90)
+;;;           DATEHI ($BF91)    DATELO ($BF90)
 ;;;           7 6 5 4 3 2 1 0   7 6 5 4 3 2 1 0
 ;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
 ;;; DATE:    |    year     |  month  |   day   |
 ;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
 ;;;
-;;;            49043 ($BF93)     49042 ($BF92)
+;;;           TIMEHI ($BF93)    TIMELO ($BF92)
 ;;;           7 6 5 4 3 2 1 0   7 6 5 4 3 2 1 0
 ;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
 ;;; TIME:    |0 0 0|   hour  | |0 0|  minute   |
 ;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
-;;;
-;;; Extended format (ProDOS 2.5):
-;;; https://groups.google.com/d/topic/comp.sys.apple2/6MwlJSKTmQc/discussion
-;;;
-;;;            49039 ($BF8F)     49038 ($BF8E)
-;;;           7 6 5 4 3 2 1 0   7 6 5 4 3 2 1 0
-;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
-;;; xTIME:   | xSeconds  |    xMilliseconds    |
-;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
-;;;
-;;;            49041 ($BF91)     49040 ($BF90)
-;;;           7 6 5 4 3 2 1 0   7 6 5 4 3 2 1 0
-;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
-;;; DATE:    |    year     |  month  |   day   |
-;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
-;;;
-;;;            49043 ($BF93)     49042 ($BF92)
-;;;           7 6 5 4 3 2 1 0   7 6 5 4 3 2 1 0
-;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
-;;; TIME:    |xYear|   hour  | |0 0|  minute   |
-;;;          +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
-
 
         ;; Date
 
@@ -76,8 +51,7 @@ start:
         jsr     COUT
 
         pla                     ; year
-        ;; TODO: Shift in xYear bits
-        jsr     cout_number     ; TODO: Support 16-bit numbers
+        jsr     cout_number
 
         lda     #HI(' ')
         jsr     COUT
@@ -99,9 +73,6 @@ start:
         jsr     CROUT
 
         rts
-
-pm_flag:
-        .byte   0
 
 ;;; ------------------------------------------------------------
 

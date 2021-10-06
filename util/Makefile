@@ -7,7 +7,9 @@ OUTDIR = out
 HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
 TARGETS = \
-	$(OUTDIR)/pause.system.SYS
+	$(OUTDIR)/quit.system.SYS \
+	$(OUTDIR)/pause.system.SYS \
+	$(OUTDIR)/date.BIN
 
 # For timestamps
 MM = $(shell date "+%-m")
@@ -31,7 +33,7 @@ clean:
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
-$(OUTDIR)/%.SYS: $(OUTDIR)/%.o
+$(OUTDIR)/%.BIN $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<
 ifdef XATTR
 	xattr -wx prodos.AuxType '00 20' $@

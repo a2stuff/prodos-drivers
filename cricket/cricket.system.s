@@ -210,30 +210,7 @@ loop:   lda     driver,y
         .byte   0
 
         ;; Display the current date
-        lda     DATELO+1        ; month
-        ror     a
-        pha
-        lda     DATELO
-        pha
-        rol     a
-        rol     a
-        rol     a
-        rol     a
-        and     #%00001111
-        jsr     cout_number
-
-        lda     #HI('/')        ; /
-        jsr     COUT
-
-        pla                     ; day
-        and     #%00011111
-        jsr     cout_number
-
-        lda     #HI('/')        ; /
-        jsr     COUT
-
-        pla                     ; year
-        jsr     cout_number
+        jsr     cout_date
 
         rts                     ; done!
 .endproc

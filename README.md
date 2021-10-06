@@ -23,12 +23,13 @@ This repository collects several drivers and uses common code to chain to the ne
 
 ## What is present here?
 
-This repo includes The following drivers/modifications:
+This repo includes the following drivers/modifications:
 
 * Real-time Clock drivers
   * No-Slot Clock
   * Cricket!
   * Applied Engineering DClock
+  * ROMX Real-Time Clock
 * RAM Disk drivers
   * RAMWorks Driver by Glen E. Bredon
 * Quit dispatcher/selector (`BYE` routines)
@@ -41,14 +42,17 @@ In addition, `QUIT.SYSTEM` is present which isn't a driver but which immediately
 
 There's also `PAUSE.SYSTEM` which just waits for a fraction of a second before invoking the next driver file. (Why? In case the log messages from the other installers goes by too fast!)
 
-Some date/time utilities for The Cricker! clock are also included.
+Non-drivers that are included:
+* The `DATE` binary file can be `BRUN` (or just `-DATE`) to show the current ProDOS Date/Time, to verify that the clock driver is working.
+* Some utilities for The Cricket! clock are also included.
 
 ## How do you use these?
 
 The intent is that you use a tool like Copy II Plus or [Apple II DeskTop](https://github.com/a2stuff/a2d) to copy and arrange the SYSTEM files on your boot disk as you see fit. A boot disk image catalog that is used on multiple different hardware configurations might include:
 
 * `PRODOS` - the operating system, e.g. [ProDOS 2.4](https://prodos8.com/)
-* `NS.CLOCK.SYSTEM` - install No-Slot Clock driver, if present
+* `NS.CLOCK.SYSTEM` - install No-Slot clock driver, if present
+* `ROMXRTC.SYSTEM` - install ROMX clock driver, if present
 * `DCLOCK.SYSTEM` - install DClock clock driver, if present
 * `CRICKET.SYSTEM` - install Cricket! clock driver, if present
 * `RAM.DRV.SYSTEM` - install RamWorks RAM disk driver, if present

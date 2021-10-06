@@ -7,7 +7,7 @@ OUTDIR = out
 HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
 TARGETS = \
-	$(OUTDIR)/quit.system.SYS
+	$(OUTDIR)/romxrtc.system.SYS
 
 # For timestamps
 MM = $(shell date "+%-m")

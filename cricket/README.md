@@ -37,7 +37,6 @@ I ended up disassembling both [NS.CLOCK.SYSTEM](../ns.clock/ns.clock.system.s) (
 ## Other Utilities
 
 These `BRUN`able files are also built:
-* [DATE](date.s) just prints the current ProDOS date/time, to verify the time is set and updating. It does not depend on having a Cricket.
 * [TEST](test.s) attempts to identify an SSC in Slot 2 and the Cricket via the ID sequence, to test routines.
 * [SET.DATE](set.date.s) sets the Cricket's current date.
 * [SET.TIME](set.time.s) sets the Cricket's current time.

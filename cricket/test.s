@@ -49,7 +49,7 @@ ssc_not_found:
         rts
 
         ;; TODO: Write NUL and check for 'C' ... version ... $8D (CR)
-        ;; https://github.com/inexorabletash/cricket/issues/3
+        ;; https://github.com/a2stuff/cricket/issues/3
 init_ssc:
         lda     COMMAND         ; save status of SSC registers
         sta     saved_command

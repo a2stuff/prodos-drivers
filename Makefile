@@ -1,4 +1,4 @@
-targets := ns.clock cricket dclock selectors ram.drv quit pause
+targets := ns.clock cricket dclock romx selectors ram.drv util
 
 .PHONY: all $(targets) package
 
