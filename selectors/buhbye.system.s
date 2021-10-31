@@ -324,7 +324,7 @@ close_dir:
 
         ;; Print help text
         lda     #20             ; HTAB 20
-        sta     CH
+        sta     COL80HPOS
         ldy     #(help_string - text_resources)
         jsr     cout_string
 
