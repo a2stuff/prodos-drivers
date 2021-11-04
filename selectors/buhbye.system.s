@@ -601,6 +601,26 @@ handy_rts2:
         pla
         sta     INVFLG
 
+        ;; Work around MouseText deactivation bug on Franklin ACE 2X00/500
+        ;; The Apple IIe/IIc/IIgs and the Franklin ACE 2X00/500 all use the
+        ;; screen hole address $4FB to store a video firmware operating
+        ;; mode byte, e.g. whether or not MouseText output is active. For
+        ;; the Apple IIe and IIgs, see the Apple IIe Technical Reference
+        ;; Manual, Appendix J Monitor Firmware Listing for the definition.
+        ;; (Bit 0 is set when MouseText is inactive and clear when active.)
+        ;; The Apple IIc also uses bit 0 the same way, but bits 3 and 7 are
+        ;; also normally set. The Franklin Ace 2X00 and 500 set bit 6
+        ;; when MouseText mode is activated by printing $1B, but fails to
+        ;; clear it when printing $18, so MouseText remains active. This
+        ;; seems to be a bug in the firmware. Work around it by detecting
+        ;; the unique byte signature left behind and resetting it.
+        lda     $4FB            ; $4FB = $30 normally (V flag clear)
+        cmp     #$40            ; $4FB = $70 if MT is active (V flag set)
+        bne     :+              ; $4FB = $40 if you try to disable MT!
+        lda     #$30            ; Bug in firmware? We're not sure yet.
+        sta     $4FB            ; Any way, set it manually.
+:
+
         ;; Draw the name
 name:   jsr     space
         jsr     update_curr_ptr
