@@ -219,6 +219,7 @@ block_len       = $200
         ;; Read first "block"
         MLI_CALL READ, read_block_params
         bcc     :+
+        MLI_CALL CLOSE, close_params
         jmp     on_error
 
         ;; Get sizes out of header
@@ -339,9 +340,9 @@ not_found:
         sta     close_params::ref_num
 
         MLI_CALL READ, read_params
-        bcs     on_error
-
+        php
         MLI_CALL CLOSE, close_params
+        plp
         bcs     on_error
 
         jmp     SYS_ADDR        ; Invoke loaded SYSTEM file
