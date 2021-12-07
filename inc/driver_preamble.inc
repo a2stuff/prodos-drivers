@@ -323,6 +323,7 @@ handle_sys_file:
         jmp     invoke_system_file
 
 not_found:
+        MLI_CALL CLOSE, close_params
         jmp     quit
 .endproc
 
