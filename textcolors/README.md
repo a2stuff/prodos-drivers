@@ -1,4 +1,7 @@
 # Text Color Utilities
+
+Author: @chrisparana
+
 These utilities will work with the Apple IIgs or on any Apple II equipped with a VidHD card. Each will set the color of the text, background, and border and then invoke the ProDOS quit handler immediately.
 
 Useful if you'd like to automatically set a theme at boot or select one manually afterwards. Originally created because I wanted my GS to use a different set of colors when booting my ProDOS 8 partition then what I have set as default in the Control Panel.
@@ -30,4 +33,3 @@ To have these themes applied at boot, place one of the theme SYSTEM at the end o
 
 [WB.SYSTEM](wb.system.s)
   * Black text on a black background
-

@@ -23,6 +23,9 @@ RDALTZP         := $C016
 RD80STORE       := $C018
 RDPAGE2         := $C01C
 
+TBCOLOR         := $C022        ; IIgs: low nibble is text bg color, high is fg
+CLOCKCTL        := $C034        ; IIgs: low nibble is border color
+
 BANKSEL         := $C073        ; Select RamWorks bank
 
 ROMIN2          := $C082        ; Read ROM; no write
