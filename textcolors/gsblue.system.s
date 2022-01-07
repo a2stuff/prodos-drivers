@@ -12,16 +12,6 @@
 ;;; ************************************************************
 
 .proc maybe_install_driver
-        bit     ROMIN2
-        sta     CLR80VID
-        sta     CLRALTCHAR
-        sta     CLR80COL
-        jsr     SETVID
-        jsr     SETKBD
-        jsr     SETNORM
-        jsr     INIT
-        jsr     HOME
-
         lda     #$f6            ; border: white on medium blue
         sta     TBCOLOR
         lda     #$06            ; border: medium blue
