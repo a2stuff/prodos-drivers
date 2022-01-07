@@ -37,6 +37,8 @@ This repo includes the following drivers/modifications:
   * 80-column menu-driven Selector (from ProDOS 1.9 and 2.x)
   * Bird's Better Bye (a 40-column menu-driven selector)
   * Buh-Bye (an enhanced version of the ProDOS 80-column, menu-driven selector)
+* Text color themes
+  * These set the IIgs (or VidHD) text/background/border colors
 
 In addition, `QUIT.SYSTEM` is present which isn't a driver but which immediately invokes the QUIT handler (a.k.a. program selector). This will happen automatically if the last driver can't find another `.SYSTEM` file, but `QUIT.SYSTEM` can be used to stop the chain.
 

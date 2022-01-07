@@ -1,13 +1,17 @@
         .setcpu "6502"
+
         .include "apple2.inc"
+        .include "apple2.mac"
 
         .include "../inc/apple2.inc"
+        .include "../inc/macros.inc"
         .include "../inc/prodos.inc"
 
-        .org SYS_ADDR
+;;; ************************************************************
+        .include "../inc/driver_preamble.inc"
+;;; ************************************************************
 
-        cld
-
+.proc maybe_install_driver
         bit     ROMIN2
         sta     CLR80VID
         sta     CLRALTCHAR
@@ -23,7 +27,9 @@
         lda     #$00            ; border: black
         sta     CLOCKCTL
 
-        MLI_CALL QUIT, quit_params
-        brk
+        rts
+.endproc
 
-        DEFINE_QUIT_PARAMS quit_params
+;;; ************************************************************
+        .include "../inc/driver_postamble.inc"
+;;; ************************************************************
