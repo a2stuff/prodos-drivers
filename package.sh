@@ -32,6 +32,7 @@ add_file "selectors/out/bye.system.SYS"      "bye.system#FF0000"      "/$VOLNAME
 add_file "selectors/out/selector.system.SYS" "selector.system#FF0000" "/$VOLNAME"
 add_file "util/out/quit.system.SYS"          "quit.system#FF0000"     "/$VOLNAME"
 add_file "util/out/pause.system.SYS"         "pause.system#FF0000"    "/$VOLNAME"
+add_file "util/out/me.first.system.SYS"      "me.first.system#FF0000" "/$VOLNAME"
 add_file "util/out/date.BIN"                 "date#062000"            "/$VOLNAME"
 
 cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/TEXTCOLORS" --no-case-bits --quiet

@@ -9,6 +9,7 @@ HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 TARGETS = \
 	$(OUTDIR)/quit.system.SYS \
 	$(OUTDIR)/pause.system.SYS \
+	$(OUTDIR)/me.first.system.SYS \
 	$(OUTDIR)/date.BIN
 
 # For timestamps
