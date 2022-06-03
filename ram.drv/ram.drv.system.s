@@ -341,13 +341,10 @@ copy_driver:
         dey
         bpl     :-
 
-        ;; Shift devices up by one
+        ;; Otherwise, insert at end. ProDOS resolves names to devices
+        ;; from last to first, so fast RAM disks should go last.
         inc     DEVCNT
         ldy     DEVCNT
-:       lda     DEVLST-1,y
-        sta     DEVLST,y
-        dey
-        bne     :-
 
         ;; Install device in ProDOS via DEVLST/DEVADR.
         ;; (Y has index in DEVLST)
