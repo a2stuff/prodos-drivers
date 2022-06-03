@@ -1,10 +1,11 @@
 ;;; ROMX ProDOS RTC Driver
-;;; Based on:
-;;; * Ver 0.91
-;;; * Ver 0.92 Added ZIP slowdowns - 11-Aug-2021 -
+;;; Ver 0.91
+;;; Ver 0.92 Added ZIP slowdowns
+;;; Ver 0.93 Moved StubLoc to $0110
+;;; Ver 0.94 Moved StubLoc to RTC_BUF + 7. Save/restore in stack
+;;;
 ;;; Modifications by Joshua Bell inexorabletash@gmail.com
 ;;; * Converted to ca65 syntax and adapted to driver wrapper.
-;;; * Driver core rewritten to ensure that $220 and up are saved/restored.
 
         .setcpu "6502"
         .linecont +
@@ -171,17 +172,13 @@ loop:   lda     ClockDrv,y
 ;;; ROMX RTC driver - Relocated into ProDOS clock driver space
 ;;; ============================================================
 
-;;; The first ~$20 bytes of $200 (input buffer) are safe to
-;;; overwrite. They are also used by the built-in Thunderclock
-;;; slot-clock driver in ProDOS ($200-$20C).
-
-StubLoc       :=  $0200       ; RAM stub for ROMX (<$20 bytes)
-
 ;;; ROMX Firmware writes RTC data into this fixed location.
 ;;; It risks conflicting with some applications (e.g. A2DeskTop),
 ;;; so the data is saved/restored around clock reads.
 
-RTC_BUF       :=  $02B0
+RTC_BUF       :=  $02B0          ; use keyboard buffer
+StubLoc       :=  RTC_BUF+7      ; RAM stub for ROMX
+
 
 ClockDrv:
         ;; --------------------------------------------------
@@ -193,12 +190,12 @@ ClockDrv:
         ;; --------------------------------------------------
         ;; Copy the stub to RAM, and preserve RTC_BUF
 
-        ldx     #RamStubEnd-RamStub-1 ; copy stub to RAM
-        RELOC1 := *+1
-:       lda     RamStub - ClockDrv,x ; self-modified during relocation
-        sta     StubLoc,x
-        lda     RTC_BUF,x       ; save `RTC_BUF` too (way more than needed)
+        ldx     #RamStubEnd-RamStub+7 ; preserve and copy stub to RAM
+:       lda     RTC_BUF,x
         pha
+        RELOC1 := *+1
+        lda     RamStub-ClockDrv-7,x ; self-modified during relocation
+        sta     RTC_BUF,x
         dex
         bpl     :-
 
@@ -215,7 +212,7 @@ bufloop:
         lda     RTC_BUF,y
 
         RELOC2 := *+1
-        and     MaskTable-1 - ClockDrv,y ; self-modified during relocation
+        and     MaskTable-1-ClockDrv,y ; self-modified during relocation
 
         ;; BCD to Binary
         ;; On entry, A=BCD value &00-&99
@@ -270,7 +267,7 @@ bufloop:
 :       pla
         sta     RTC_BUF,x
         inx
-        cpx     #RamStubEnd-RamStub
+        cpx     #RamStubEnd-RamStub+7+1
         bne     :-
 
         ;; --------------------------------------------------
