@@ -3,6 +3,7 @@
 ;;; Ver 0.92 Added ZIP slowdowns
 ;;; Ver 0.93 Moved StubLoc to $0110
 ;;; Ver 0.94 Moved StubLoc to RTC_BUF + 7. Save/restore in stack
+;;; Ver 0.95 Moved MaskTable to after Thunderclock reloc area
 ;;;
 ;;; Modifications by Joshua Bell inexorabletash@gmail.com
 ;;; * Converted to ca65 syntax and adapted to driver wrapper.
@@ -276,10 +277,6 @@ bufloop:
         plp
         rts
 
-MaskTable:
-        .byte   $7f, $3f, $07, $3f, $1f, $ff
-        ;; .... min  hour wkdy date mnth year (`RTC_BUF` bytes 1..6)
-
 RamStub:
 .ifndef FAKE_CLOCK
         ;; Really read the ROMX RTC
@@ -314,6 +311,10 @@ RamStub:
         rts
 RamStubEnd := *
         .assert RamStubEnd - RamStub < $20, error, "Stub too long"
+
+MaskTable:
+        .byte   $7f, $3f, $07, $3f, $1f, $ff
+        ;; .... min  hour wkdy date mnth year (`RTC_BUF` bytes 1..6)
 
 ClockDrvEnd := *
 ClockDrvSize = ClockDrvEnd - ClockDrv
