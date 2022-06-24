@@ -46,6 +46,12 @@ SEL_MBANK     :=  $F851       ; Select Main bank reg
 ;;; ============================================================
 ;;; Ensure there is not a previous clock driver installed.
 
+.ifdef FAKE_CLOCK
+
+maybe_install_driver := install_driver
+
+.else
+
 .proc maybe_install_driver
         lda     MACHID
         and     #$01            ; existing clock card?
@@ -57,14 +63,6 @@ SEL_MBANK     :=  $F851       ; Select Main bank reg
 ;;; ------------------------------------------------------------
 
 .proc detect_romx
-        ;; Preserve date/time
-        ldy     #3              ; copy 4 bytes
-:       lda     DATELO,y
-        sta     saved,y
-        dey
-        bpl     :-
-
-.ifndef FAKE_CLOCK
         ;; Try to detect ROMX and RTC
         bit     ROMIN2          ; enable ROM
         bit     ZipSlo          ; disable ZIP
@@ -74,26 +72,18 @@ SEL_MBANK     :=  $F851       ; Select Main bank reg
 
         lda     SigCk           ; Check for ROMX signature bytes
         cmp     #$4A
-        bne     not_found
+        bne     nope
         lda     SigCk+1
         cmp     #$CD
-        bne     not_found
+        bne     nope
         lda     FWReadClock     ; is RTC code there?
         cmp     #$AD
-        php
-        bit     SEL_MBANK       ; restore original bank
-        plp
-        bne     not_found
-.endif
-        jmp     install_driver  ; found clock!
-
-not_found:
-        ;; Restore date/time
-        ldy     #3
-:       lda     saved,y
-        sta     DATELO,y
-        dey
-        bpl     :-
+        bne     nope
+        clc                     ; found clock!
+        bcc     :+
+nope:   sec                     ; not found
+:       bit     SEL_MBANK       ; restore original bank (unconditionally)
+        bcc     install_driver  ; found clock!
 
         ;; Show failure message
         jsr     log_message
@@ -101,9 +91,9 @@ not_found:
         .byte   0
 
         rts
-
-saved:  .byte   0, 0, 0, 0
 .endproc
+
+.endif
 
 ;;; ------------------------------------------------------------
 ;;; Install ROMX RTC Driver. Copy into address at DATETIME vector,
