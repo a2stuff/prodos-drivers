@@ -131,6 +131,8 @@ loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
         cld                     ; ProDOS protocol for QUIT routine
         lda     ROMIN2          ; Page in ROM for reads, writes ignored
 
+        bit     KBDSTRB         ; Clear keyboard strobe
+
         lda     #$A0
         jsr     SLOT3           ; Activate 80-Column Firmware
 
