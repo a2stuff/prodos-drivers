@@ -100,7 +100,7 @@ loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
         read_buffer     := $2000 ; Also, start location for launched SYS files
 
         ;; Device/Prefix enumeration
-        next_device_num := $65  ; next device number to try
+        cur_device_num  := $65  ; device number to try
         prefix_depth    := $6B  ; 0 = root
 
         ;; Directory enumeration
@@ -146,22 +146,23 @@ loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
         sta     BITMAP
 
         ;; Find device
-        lda     DEVCNT          ; max device num
-        sta     next_device_num
-        lda     DEVNUM
-        bne     check_device
+        ldx     DEVCNT
+:       lda     DEVLST,x
+        and     #%11110000
+        cmp     DEVNUM
+        beq     check_device
+        dex
+        bra     :-
 
 next_device:
-        ldx     next_device_num
-        lda     DEVLST,x
-        cpx     #1
-        bcs     :+
+        ldx     cur_device_num
+        dex
+        bpl     :+
         ldx     DEVCNT
-        inx
-:       dex
-        stx     next_device_num
+:       lda     DEVLST,x
 
 check_device:
+        stx     cur_device_num
         sta     on_line_params_unit
         MLI_CALL ON_LINE, on_line_params
         bcs     next_device
@@ -256,9 +257,9 @@ store_entry:
         sta     (curr_ptr),y
         dey
         bpl     :-
-        iny                     ; Y = 0; storage_type/name_length in A
+                                ; storage_type/name_length in A
         and     #%00001111      ; mask off name_length (remove storage_type)
-        sta     (curr_ptr),y    ; store length
+        sta     (curr_ptr)      ; store length
 
         inc     num_entries
 
@@ -300,9 +301,9 @@ next_in_block:
         lda     entry_pointer
         adc     entry_length
         sta     entry_pointer
-        lda     entry_pointer+1
-        adc     #0
-        sta     entry_pointer+1
+        bcc     :+
+        inc     entry_pointer+1
+:
 
         inc     block_entries
 
@@ -568,9 +569,9 @@ loop:   lda     help_string,y
         clc
         adc     curr_ptr+1
         sta     curr_ptr+1
-        ldy     #0
-        lda     (curr_ptr),y
+        lda     (curr_ptr)
         sta     curr_len
+        ldy     #0              ; needed by caller
         ;; fall through
 .endproc
 
@@ -691,7 +692,7 @@ cout:   jmp     COUT
 ;;; ------------------------------------------------------------
 
 .endproc
-        .assert .sizeof(selector) <= max_size, error, "Must fit in $300 bytes"
+        .assert .sizeof(selector) <= max_size, error, .sprintf("Must fit in $300 bytes, is: $%x", .sizeof(selector))
         install_size = .sizeof(selector)
         poporg
 
