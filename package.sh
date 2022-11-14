@@ -4,13 +4,14 @@
 # https://github.com/mach-kernel/cadius
 
 set -e
+set -x
 
 PACKDIR=$(mktemp -d)
 IMGFILE="prodos-drivers.po"
 VOLNAME="drivers"
 
 rm -f "$IMGFILE"
-cadius CREATEVOLUME "$IMGFILE" "$VOLNAME" 140KB --no-case-bits --quiet
+cadius CREATEVOLUME "$IMGFILE" "$VOLNAME" 800KB --no-case-bits --quiet
 cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/CRICKET.UTIL" --no-case-bits --quiet
 
 add_file () {
@@ -25,6 +26,7 @@ add_file "cricket/out/test.BIN"              "test#062000"            "/$VOLNAME
 add_file "dclock/out/dclock.system.SYS"      "dclock.system#FF0000"   "/$VOLNAME"
 add_file "ns.clock/out/ns.clock.system.SYS"  "ns.clock.system#FF0000" "/$VOLNAME"
 add_file "romx/out/romxrtc.system.SYS"       "romxrtc.system#FF0000"  "/$VOLNAME"
+add_file "fujinet/out/fn.clock.system.SYS"   "fn.clock.system#FF0000" "/$VOLNAME"
 add_file "ram.drv/out/ram.drv.system.SYS"    "ram.drv.system#FF0000"  "/$VOLNAME"
 add_file "selectors/out/bbb.system.SYS"      "bbb.system#FF0000"      "/$VOLNAME"
 add_file "selectors/out/buhbye.system.SYS"   "buhbye.system#FF0000"   "/$VOLNAME"
