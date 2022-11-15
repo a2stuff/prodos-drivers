@@ -4,14 +4,13 @@
 # https://github.com/mach-kernel/cadius
 
 set -e
-set -x
 
 PACKDIR=$(mktemp -d)
 IMGFILE="prodos-drivers.po"
 VOLNAME="drivers"
 
 rm -f "$IMGFILE"
-cadius CREATEVOLUME "$IMGFILE" "$VOLNAME" 800KB --no-case-bits --quiet
+cadius CREATEVOLUME "$IMGFILE" "$VOLNAME" 140KB --no-case-bits --quiet
 cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/CRICKET.UTIL" --no-case-bits --quiet
 
 add_file () {
