@@ -72,8 +72,7 @@ port:   .byte   $00 ; Smartport device
         .byte   'P' ; Get datetime in ProDDOS format
 
 .endproc
-        sizeof_driver := .sizeof(driver)
-        .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
+        .assert .sizeof(driver) <= 125, error, "Clock code must be <= 125 bytes"
 
 
 ;;; ------------------------------------------------------------
@@ -81,7 +80,7 @@ port:   .byte   $00 ; Smartport device
 
 .proc detect_fujinet_clock
 
-        ;; Serch for smartport cards
+        ;; Search for smartport cards
         ldx     #$C7 ; Start the search from slot 7
 search_slot:
         jsr     find_smartport
@@ -92,7 +91,7 @@ search_slot:
         jsr     device_count
         cpx     #$0
         beq     continue_slot_search; no devices in the slot
-        
+
 search_unit:
         jsr     unit_type
         cmp     #FN_CLOCK_DEVICE_TYPE
@@ -150,7 +149,7 @@ not_found:
         ;; Copy code
         lda     RWRAM1
         lda     RWRAM1
-        ldy     #sizeof_driver-1
+        ldy     #.sizeof(driver)-1
 
 loop:   lda     driver,y
         sta     (ptr),y

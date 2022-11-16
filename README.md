@@ -30,6 +30,7 @@ This repo includes the following drivers/modifications:
   * Cricket!
   * Applied Engineering DClock
   * ROMX Real-Time Clock
+  * FujiNet Clock
 * RAM Disk drivers
   * RAMWorks Driver by Glen E. Bredon
 * Quit dispatcher/selector (`BYE` routines)
@@ -55,6 +56,7 @@ The intent is that you use a tool like Copy II Plus or [Apple II DeskTop](https:
 * `PRODOS` - the operating system, e.g. [ProDOS 2.4](https://prodos8.com/)
 * `NS.CLOCK.SYSTEM` - install No-Slot clock driver, if present
 * `ROMXRTC.SYSTEM` - install ROMX clock driver, if present
+* `FN.CLOCK.SYSTEM` - install FujiNet clock driver, if present
 * `DCLOCK.SYSTEM` - install DClock clock driver, if present
 * `CRICKET.SYSTEM` - install Cricket! clock driver, if present
 * `RAM.DRV.SYSTEM` - install RamWorks RAM disk driver, if present

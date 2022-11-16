@@ -2,11 +2,11 @@
 ;;; Smartport access functions
 ;;; Derived from: http://mirrors.apple2.org.za/ground.icaen.uiowa.edu/MiscInfo/Programming/smartport.statusexample
 
-;;This function scans the slots to locate a SmartPort.
-;;On entry, X=$Cx, where x is the first slot to be checked. 
-;;On exit, X=$Cy, where y is the highest numbered slot less than or
-;;equal to x which contains SmartPort firmware.  If no SmartPort
-;;is found, C=1 and A=$00.
+;;; This function scans the slots to locate a SmartPort.
+;;; On entry, X=$Cx, where x is the first slot to be checked.
+;;; On exit, X=$Cy, where y is the highest numbered slot less than or
+;;; equal to x which contains SmartPort firmware.  If no SmartPort
+;;; is found, C=1 and A=$00.
 ptr := $A5 ; Generic pointer
 
 .proc find_smartport
@@ -43,26 +43,26 @@ not_here:
         RTS
 .endproc
 
-;; This function sets up the SP_CALL function for calling the
-;; SmartPort driver.  On entry, X=$Cx, where x is the slot number
-;; containing a SmartPort driver.  This should be checked via
-;; FIND_SMARTPORT if necessary - don't assume there is a SmartPort
-;; device in slot 5, for example!
+;;; This function sets up the SP_CALL function for calling the
+;;; SmartPort driver.  On entry, X=$Cx, where x is the slot number
+;;; containing a SmartPort driver.  This should be checked via
+;;; FIND_SMARTPORT if necessary - don't assume there is a SmartPort
+;;; device in slot 5, for example!
 .proc setup_smartport
         LDA  #$00
         STA  ptr           ; Set up the pointer
         STX  ptr+1
         LDY  #$FF
         LDA  (ptr),Y       ; Get the ProDOS driver entry point
-        CLC 
+        CLC
         ADC  #$03          ; Get the SmartPort driver entry point
         STA  sp_call_lo    ; Store in the JSR
         STX  sp_call_hi    ; also store the high byte
         RTS
 .endproc
 
-;; This function return in X the number of devices available
-;; on a SmartPort
+;;; This function return in X the number of devices available
+;;; on a SmartPort
 .proc device_count
         LDA  #$00
         STA  st_unit
@@ -76,7 +76,7 @@ device_count_error:
         RTS
 .endproc
 
-;; This function returns in A the device type for a unit in X
+;;; This function returns in A the device type for a unit in X
 .proc unit_type
         STX  st_unit
         LDA  #$03
@@ -94,7 +94,7 @@ unit_type_error:
 
 
 
-;; Status command parameters
+;;; Status command parameters
 sp_call: JSR  $0000
 sp_call_hi = *-1
 sp_call_lo = *-2
@@ -103,7 +103,7 @@ params_address:
         .word st_params
         RTS
 
-st_params: 
+st_params:
         .byte $3           ; Parameter count
 st_unit:.byte $0
         .word st_list
