@@ -1,4 +1,4 @@
-targets := ns.clock cricket dclock romx selectors ram.drv util textcolors
+targets := ns.clock cricket dclock romx fujinet selectors ram.drv util textcolors
 
 .PHONY: all $(targets) package
 
