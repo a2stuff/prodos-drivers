@@ -1,5 +1,7 @@
 # ProDOS Clock Drivers
 
+Other than the Apple IIgs model, the Apple II did not ship with a real-time system clock. Many third party [Apple II system clocks](https://en.wikipedia.org/wiki/Apple_II_system_clocks) were produced in the 1980s, and many new system clocks are available, either as entirely new designs or recreations.
+
 The ProDOS operating system for the Apple II personal computer line natively supports the Thunderclock real-time clock card, but there is a protocol for custom clock drivers to be installed:
 
 * Check `MACHID` bit 0 to see if a clock is already active; abort if so.
@@ -21,10 +23,10 @@ See https://prodos8.com/docs/techref/adding-routines-to-prodos/ for more informa
 
 This directory includes drivers for the following real-time clocks:
 
-* No-Slot Clock
+* [No-Slot Clock](https://www.reactivemicro.com/product/no-slot-clock/)
+* [ROMX Real-Time Clock](https://theromexchange.com/)
+* [FujiNet Clock](https://fujinet.online/)
+* DClock
 * Cricket!
-* Applied Engineering DClock
-* ROMX Real-Time Clock
-* FujiNet Clock
 
 All follow the above protocol: install only if there is not already a clock, probe for the clock before installing, and chain to the next driver.
