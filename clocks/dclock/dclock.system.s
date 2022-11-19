@@ -20,9 +20,9 @@
         .include "apple2.mac"
         .include "opcodes.inc"
 
-        .include "../inc/apple2.inc"
-        .include "../inc/macros.inc"
-        .include "../inc/prodos.inc"
+        .include "../../inc/apple2.inc"
+        .include "../../inc/macros.inc"
+        .include "../../inc/prodos.inc"
 
 ; zero page locations
 SCRATCH         := $0B                          ; scratch value for BCD range checks
@@ -43,7 +43,7 @@ DPTRH           := SLOT4IO+2                    ; Slinky data ptr high
 DATA            := SLOT4IO+3                    ; Slinky data byte
 
 ;;; ************************************************************
-        .include "../inc/driver_preamble.inc"
+        .include "../../inc/driver_preamble.inc"
 ;;; ************************************************************
 
 ;;; ============================================================
@@ -380,5 +380,5 @@ regulk  = * - 1
         .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
 
 ;;; ************************************************************
-        .include "../inc/driver_postamble.inc"
+        .include "../../inc/driver_postamble.inc"
 ;;; ************************************************************

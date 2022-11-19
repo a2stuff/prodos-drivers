@@ -14,13 +14,13 @@
         .include "apple2.mac"
         .include "opcodes.inc"
 
-        .include "../inc/apple2.inc"
-        .include "../inc/macros.inc"
-        .include "../inc/prodos.inc"
-        .include "../inc/ascii.inc"
+        .include "../../inc/apple2.inc"
+        .include "../../inc/macros.inc"
+        .include "../../inc/prodos.inc"
+        .include "../../inc/ascii.inc"
 
 ;;; ************************************************************
-        .include "../inc/driver_preamble.inc"
+        .include "../../inc/driver_preamble.inc"
 ;;; ************************************************************
 
 ;;; ============================================================
@@ -310,5 +310,5 @@ done:   pla                     ; restore saved command state
         .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
 
 ;;; ************************************************************
-        .include "../inc/driver_postamble.inc"
+        .include "../../inc/driver_postamble.inc"
 ;;; ************************************************************

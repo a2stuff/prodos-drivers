@@ -16,16 +16,16 @@
         .include "apple2.mac"
         .include "opcodes.inc"
 
-        .include "../inc/apple2.inc"
-        .include "../inc/macros.inc"
-        .include "../inc/prodos.inc"
+        .include "../../inc/apple2.inc"
+        .include "../../inc/macros.inc"
+        .include "../../inc/prodos.inc"
 
 ;;; Uncomment the following to "fake" a clock with a fixed date.
 ;;; Used for testing without a real ROMX around.
 ;;; FAKE_CLOCK = 1
 
 ;;; ************************************************************
-        .include "../inc/driver_preamble.inc"
+        .include "../../inc/driver_preamble.inc"
 ;;; ************************************************************
 
 ZipSlo        :=  $C0E0       ; ZIP CHIP slowdown
@@ -313,5 +313,5 @@ ClockDrvSize = ClockDrvEnd - ClockDrv
             .sprintf("Clock driver must be <= 125 bytes, was %d bytes", ClockDrvSize)
 
 ;;; ************************************************************
-        .include "../inc/driver_postamble.inc"
+        .include "../../inc/driver_postamble.inc"
 ;;; ************************************************************

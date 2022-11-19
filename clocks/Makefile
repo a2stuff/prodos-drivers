@@ -1,6 +1,6 @@
-targets := clocks selectors ram.drv util textcolors
+targets := ns.clock cricket dclock romx fujinet
 
-.PHONY: all $(targets) package
+.PHONY: all $(targets)
 
 all: $(targets)
 
@@ -17,6 +17,3 @@ clean:
 	  tput setaf 2 && echo "cleaning $$dir" && tput sgr0; \
 	  $(MAKE) -C $$dir clean; \
 	done
-
-package:
-	./package.sh

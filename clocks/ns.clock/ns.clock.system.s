@@ -13,12 +13,12 @@
         .include "apple2.mac"
         .include "opcodes.inc"
 
-        .include "../inc/apple2.inc"
-        .include "../inc/macros.inc"
-        .include "../inc/prodos.inc"
+        .include "../../inc/apple2.inc"
+        .include "../../inc/macros.inc"
+        .include "../../inc/prodos.inc"
 
 ;;; ************************************************************
-        .include "../inc/driver_preamble.inc"
+        .include "../../inc/driver_preamble.inc"
 ;;; ************************************************************
 
 ;;; ============================================================
@@ -289,5 +289,5 @@ unlock:
 
 
 ;;; ************************************************************
-        .include "../inc/driver_postamble.inc"
+        .include "../../inc/driver_postamble.inc"
 ;;; ************************************************************

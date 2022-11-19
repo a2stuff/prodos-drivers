@@ -8,9 +8,9 @@
         .include "apple2.inc"
         .include "apple2.mac"
 
-        .include "../inc/apple2.inc"
-        .include "../inc/macros.inc"
-        .include "../inc/ascii.inc"
+        .include "../../inc/apple2.inc"
+        .include "../../inc/macros.inc"
+        .include "../../inc/ascii.inc"
 
         .org $2000
 
