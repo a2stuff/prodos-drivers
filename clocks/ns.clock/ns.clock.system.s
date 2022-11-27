@@ -5,6 +5,7 @@
 ;;; Modification history available at:
 ;;; https://github.com/a2stuff/prodos-drivers
 
+.ifndef JUMBO_CLOCK_DRIVER
         .setcpu "6502"
         .linecont +
         .feature string_escapes
@@ -16,9 +17,12 @@
         .include "../../inc/apple2.inc"
         .include "../../inc/macros.inc"
         .include "../../inc/prodos.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 
 ;;; ************************************************************
+.ifndef JUMBO_CLOCK_DRIVER
         .include "../../inc/driver_preamble.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 ;;; ************************************************************
 
 ;;; ============================================================
@@ -27,7 +31,9 @@
 ;;;
 ;;; ============================================================
 
+.ifndef JUMBO_CLOCK_DRIVER
         .define PRODUCT "No-Slot Clock"
+.endif ; JUMBO_CLOCK_DRIVER
 
 ;;; ============================================================
 ;;; Ensure there is not a previous clock driver installed.
@@ -126,11 +132,14 @@ not_found:
         dey
         bpl     :-
 
+.ifndef JUMBO_CLOCK_DRIVER
         ;; Show failure message
         jsr     log_message
         scrcode PRODUCT, " - Not Found."
         .byte   0
+.endif ; JUMBO_CLOCK_DRIVER
 
+        sec                     ; failure
         rts
 
 saved:  .byte   0, 0, 0, 0
@@ -180,6 +189,7 @@ loop:   lda     driver,y
 
         lda     ROMIN2
 
+.ifndef JUMBO_CLOCK_DRIVER
         ;; Display success message
         jsr     log_message
         scrcode PRODUCT, " - "
@@ -187,7 +197,9 @@ loop:   lda     driver,y
 
         ;; Display the current date
         jsr     cout_date
+.endif ; JUMBO_CLOCK_DRIVER
 
+        clc                     ; success
         rts                     ; done!
 .endproc
 
@@ -289,5 +301,7 @@ unlock:
 
 
 ;;; ************************************************************
+.ifndef JUMBO_CLOCK_DRIVER
         .include "../../inc/driver_postamble.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 ;;; ************************************************************

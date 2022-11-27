@@ -1,6 +1,7 @@
 ;;; ProDOS driver for the Fujinet clock
 ;;; Adapted from: https://github.com/a2stuff/prodos-drivers/blob/main/cricket/cricket.system.s
 
+.ifndef JUMBO_CLOCK_DRIVER
         .setcpu "6502"
         .linecont +
         .feature string_escapes
@@ -13,14 +14,17 @@
         .include "../../inc/macros.inc"
         .include "../../inc/prodos.inc"
         .include "../../inc/ascii.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 
 ;;; ************************************************************
+.ifndef JUMBO_CLOCK_DRIVER
         .include "../../inc/driver_preamble.inc"
-        .include "./smartport.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 ;;; ************************************************************
+
+        .include "./smartport.inc"
 
 FN_CLOCK_DEVICE_TYPE := $13 ; As defined on the Fujinet firmware
-
 
 ;;; ============================================================
 ;;;
@@ -28,7 +32,9 @@ FN_CLOCK_DEVICE_TYPE := $13 ; As defined on the Fujinet firmware
 ;;;
 ;;; ============================================================
 
+.ifndef JUMBO_CLOCK_DRIVER
         .define PRODUCT "Fujinet Clock"
+.endif ; JUMBO_CLOCK_DRIVER
 
 ;;; ============================================================
 ;;; Ensure there is not a previous clock driver installed.
@@ -115,12 +121,15 @@ found:
         jmp     install_driver
 
 not_found:
+.ifndef JUMBO_CLOCK_DRIVER
         ;; Show failure message
         jsr     log_message
         scrcode PRODUCT, " - Not Found."
         .byte   0
-        rts
+.endif ; JUMBO_CLOCK_DRIVER
 
+        sec                     ; failure
+        rts
 .endproc
 
 ;;; ------------------------------------------------------------
@@ -169,6 +178,7 @@ loop:   lda     driver,y
 
         lda     ROMIN2
 
+.ifndef JUMBO_CLOCK_DRIVER
         ;; Display success message
         jsr     log_message
         scrcode PRODUCT, " - "
@@ -176,11 +186,15 @@ loop:   lda     driver,y
 
         ;; Display the current date
         jsr     cout_date
+.endif ; JUMBO_CLOCK_DRIVER
 
+        clc                     ; success
         rts                     ; done!
 .endproc
 
 
 ;;; ************************************************************
+.ifndef JUMBO_CLOCK_DRIVER
         .include "../../inc/driver_postamble.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 ;;; ************************************************************

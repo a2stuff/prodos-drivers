@@ -6,6 +6,7 @@
 ;;; Original by "CAP" 04/21/91
 ;;; http://www.apple2.org.za/gswv/a2zine/GS.WorldView/v1999/Oct/MISC/NSC.Disk.TXT
 
+.ifndef JUMBO_CLOCK_DRIVER
         .setcpu "6502"
         .linecont +
         .feature string_escapes
@@ -18,9 +19,12 @@
         .include "../../inc/macros.inc"
         .include "../../inc/prodos.inc"
         .include "../../inc/ascii.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 
 ;;; ************************************************************
+.ifndef JUMBO_CLOCK_DRIVER
         .include "../../inc/driver_preamble.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 ;;; ************************************************************
 
 ;;; ============================================================
@@ -31,7 +35,9 @@
 
         read_delay_hi = $3 * 3 ; ($300 iterations is normal * 3.6MHz)
 
+.ifndef JUMBO_CLOCK_DRIVER
         .define PRODUCT "Cricket Clock"
+.endif ; JUMBO_CLOCK_DRIVER
 
 ;;; ============================================================
 ;;; Ensure there is not a previous clock driver installed.
@@ -115,10 +121,14 @@ cricket_not_found:
         ;; fall through...
 
 not_found:
+.ifndef JUMBO_CLOCK_DRIVER
         ;; Show failure message
         jsr     log_message
         scrcode PRODUCT, " - Not Found."
         .byte   0
+.endif ; JUMBO_CLOCK_DRIVER
+
+        sec                     ; failure
         rts
 
 restore_cmd_ctl:
@@ -204,6 +214,7 @@ loop:   lda     driver,y
 
         lda     ROMIN2
 
+.ifndef JUMBO_CLOCK_DRIVER
         ;; Display success message
         jsr     log_message
         scrcode PRODUCT, " - "
@@ -211,7 +222,9 @@ loop:   lda     driver,y
 
         ;; Display the current date
         jsr     cout_date
+.endif ; JUMBO_CLOCK_DRIVER
 
+        clc                     ; success
         rts                     ; done!
 .endproc
 
@@ -310,5 +323,7 @@ done:   pla                     ; restore saved command state
         .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
 
 ;;; ************************************************************
+.ifndef JUMBO_CLOCK_DRIVER
         .include "../../inc/driver_postamble.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 ;;; ************************************************************

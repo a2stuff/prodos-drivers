@@ -12,7 +12,8 @@
 ;   - John Brooks spotted this, [M.G.] totally missed this.
 ; This version of the code has fixes permanently applied.
 
-        .setcpu "65C02"
+.ifndef JUMBO_CLOCK_DRIVER
+        .setcpu "6502"          ; changed below
         .linecont +
         .feature string_escapes
 
@@ -23,6 +24,7 @@
         .include "../../inc/apple2.inc"
         .include "../../inc/macros.inc"
         .include "../../inc/prodos.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 
 ; zero page locations
 SCRATCH         := $0B                          ; scratch value for BCD range checks
@@ -43,7 +45,9 @@ DPTRH           := SLOT4IO+2                    ; Slinky data ptr high
 DATA            := SLOT4IO+3                    ; Slinky data byte
 
 ;;; ************************************************************
+.ifndef JUMBO_CLOCK_DRIVER
         .include "../../inc/driver_preamble.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 ;;; ************************************************************
 
 ;;; ============================================================
@@ -52,11 +56,14 @@ DATA            := SLOT4IO+3                    ; Slinky data byte
 ;;;
 ;;; ============================================================
 
+.ifndef JUMBO_CLOCK_DRIVER
         .define PRODUCT "DClock"
+.endif ; JUMBO_CLOCK_DRIVER
 
 ;;; ============================================================
 ;;; Ensure there is not a previous clock driver installed.
 ;;; And that this is a IIc. And that the clock is present.
+;;; NOTE: Safe to run on a non-IIc (6502 opcodes, etc)
 
 .proc maybe_install_driver
         lda     MACHID
@@ -70,16 +77,23 @@ DATA            := SLOT4IO+3                    ; Slinky data byte
         cmp     #$00
         bne     done
 
+;;; Since this is a IIc, okay to rely on 65C02 opcodes from here.
+        .pushcpu
+        .setcpu "65C02"
+
         jsr     ClockRead
         jsr     ValidTime
         bcc     InstallDriver
 
+.ifndef JUMBO_CLOCK_DRIVER
         ;; Show failure message
         jsr     log_message
         scrcode PRODUCT, " - Not Found."
         .byte   0
+.endif ; JUMBO_CLOCK_DRIVER
 
-done:   rts
+done:   sec                     ; failure
+        rts
 .endproc
 
 ; ----------------------------------------------------------------------------
@@ -124,6 +138,7 @@ loop:   lda     driver,y
 
         lda     ROMIN2
 
+.ifndef JUMBO_CLOCK_DRIVER
         ;; Display success message
         jsr     log_message
         scrcode PRODUCT, " - "
@@ -131,7 +146,9 @@ loop:   lda     driver,y
 
         ;; Display the current date
         jsr     cout_date
+.endif ; JUMBO_CLOCK_DRIVER
 
+        clc                     ; success
         rts                     ; done!
 .endproc
 
@@ -379,6 +396,10 @@ regulk  = * - 1
         sizeof_driver := * - driver
         .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
 
+        .popcpu
+
 ;;; ************************************************************
+.ifndef JUMBO_CLOCK_DRIVER
         .include "../../inc/driver_postamble.inc"
+.endif ; JUMBO_CLOCK_DRIVER
 ;;; ************************************************************

@@ -30,3 +30,5 @@ This directory includes drivers for the following real-time clocks:
 * Cricket!
 
 All follow the above protocol: install only if there is not already a clock, probe for the clock before installing, and chain to the next driver.
+
+In addition, the "jumbo" directory combines the other driver installers to create a single unified clock driver installer. See its [README](jumbo/README.md) for more details.

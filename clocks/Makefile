@@ -1,4 +1,4 @@
-targets := ns.clock cricket dclock romx fujinet
+targets := ns.clock cricket dclock romx fujinet jumbo
 
 .PHONY: all $(targets)
 
