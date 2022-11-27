@@ -31,6 +31,7 @@ This repo includes the following drivers/modifications:
   * Applied Engineering DClock
   * ROMX Real-Time Clock
   * FujiNet Clock
+  * A "jumbo" driver that includes all of the above (just called `CLOCK.SYSTEM`)
 * RAM Disk drivers
   * RAMWorks Driver by Glen E. Bredon
 * Quit dispatcher/selector (`BYE` routines)
