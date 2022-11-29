@@ -105,7 +105,7 @@ search_unit:
         dex
         bne     search_unit
 continue_slot_search:
-        ldx     sp_call+1 ; restore card
+        ldx     sp_call_hi ; restore card
         dex
         cpx     #$C0
         bne     search_slot
