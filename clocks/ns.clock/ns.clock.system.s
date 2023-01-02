@@ -71,6 +71,11 @@
         lda     #3              ; treat slot 0 as slot 3
 
 sloop:  ora     #$C0            ; A=$Cs
+        pha
+        jsr     DetectZ80
+        pla                     ; A=$Cs
+        bcs     next            ; Z80 present, skip this slot
+
         sta     st1+2
 rloop:  sta     ld1+2
         sta     ld2+2
@@ -201,6 +206,68 @@ loop:   lda     driver,y
 
         clc                     ; success
         rts                     ; done!
+.endproc
+
+;;; ------------------------------------------------------------
+;;; Detect Z80
+;;; ------------------------------------------------------------
+
+;;; This routine gets swapped into $0FFD for execution
+.proc Z80Routine
+        target := $0FFD
+        ;; .org $FFFD
+        patch := *+2
+        .byte   $32, $00, $e0   ; ld ($Es00),a   ; s=slot being probed turn off Z80, next PC is $0000
+        .byte   $3e, $01        ; ld a,$01
+        .byte   $32, $08, $00   ; ld (flag),a
+        .byte   $c3, $fd, $ff   ; jp $FFFD
+        flag := *
+        .byte   $00             ; flag: .db $00
+.endproc
+        .assert Z80Routine > Z80Routine::target + .sizeof(Z80Routine), error, "Z80 collision"
+
+;;; Input: A = $Cn where n = slot number
+;;; Output: C=1 if Z80 found in slot
+.proc DetectZ80
+        ;; Location to poke to invoke Z80
+        sta     store+1
+
+        ;; Convert $Cn to $En, update Z80 code
+        ora     #$E0
+        sta     Z80Routine::patch
+
+        ;; Clear detection flag
+        copy    #0, Z80Routine::flag
+
+        ;; Put routine in place
+        jsr     SwapRoutine
+
+        ;; Try to invoke Z80
+        php
+        sei
+        store := *+1
+        sta     $C000           ; self-modified
+        plp
+
+        ;; Restore memory
+        jsr     SwapRoutine
+
+        ;; Flag will be set to 1 by routine if Z80 was present.
+        lda     Z80Routine::flag
+        ror                     ; move flag into carry
+        rts
+
+.proc SwapRoutine
+        ldx     #.sizeof(Z80Routine)-1
+:       ldy     Z80Routine::target,x
+        lda     Z80Routine,x
+        sta     Z80Routine::target,x
+        tya
+        sta     Z80Routine,x
+        dex
+        bpl     :-
+        rts
+.endproc
 .endproc
 
 ;;; ============================================================
