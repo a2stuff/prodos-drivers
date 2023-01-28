@@ -116,14 +116,14 @@ next:   inc     slot
         bne     not_found
 
         ;; Not found in slot ROM, try main ROMs ???
-        lda     #>$C015
+        lda     #>$C015         ; $C015 = RDCXROM (internal or slot ROM?)
         ldy     #<$C015
         sta     ld4+2
         sty     ld4+1
-        ldy     #$07
+        ldy     #$07            ; $C007 = INTCXROM (read internal ROM)
         sta     st1+2
         sty     st1+1
-        dey
+        dey                     ; $C006 = SLOTCXROM (read slot ROM)
         sta     st4+2
         sty     st4+1
         lda     #>$C800
@@ -277,83 +277,95 @@ loop:   lda     driver,y
 driver:
         php
         sei
-ld4:    lda     $CFFF           ; self-modified
+ld4:    lda     $CFFF           ; self-modified ($CFFF or RDCXROM)
         pha
-st1:    sta     $C300           ; self-modified
-ld1:    lda     $C304           ; self-modified
+st1:    sta     $C300           ; self-modified ($Cn00 or INTCXROM)
+ld1:    lda     $C304           ; self-modified ($Cn04)
         ldx     #8
 
+        ;; --------------------------------------------------
         ;; Unlock the NSC by bit-banging.
 uloop:
         unlock_addr := *+1
-        lda     unlock-1,x      ; self-modified
+        lda     unlock-1,x      ; self-modified (during relocation)
         sec
         ror     a               ; a bit at a time
 :       pha
         lda     #0
         rol     a
         tay
-ld2:    lda     $C300,y         ; self-modified
+ld2:    lda     $C300,y         ; self-modified ($Cn00)
         pla
         lsr     a
         bne     :-
         dex
         bne     uloop
 
-        ;; Read 8 bytes * 8 bits of clock data into $200...$207
+        ;; --------------------------------------------------
+        ;; Read 8 bytes * 8 bits of clock data, push onto stack
+
+        tmp := $200
         ldx     #8
 bloop:  ldy     #8
 st2:
-:       lda     $C304           ; self-modified
+:       lda     $C304           ; self-modified ($Cn04)
         ror     a
-        ror     $01FF,x
+        ror     tmp
         dey
         bne     :-
-        lda     $01FF,x         ; got 8 bits
 
-        lsr     a               ; BCD to binary
-        lsr     a               ; shift out tens
-        lsr     a
-        lsr     a
-        tay
-        beq     donebcd
-        lda     $01FF,x
-        and     #$0F            ; mask out units
-        clc
-:       adc     #10             ; and add tens as needed
-        dey
-        bne     :-
-        sta     $01FF,x
-donebcd:
+        ;; BCD to Binary - slow but tiny
+        lda     tmp             ; A = value
+        ldy     #$FF            ; result = -1
+        sec
+        sed
+:       iny                     ; result += 1
+        sbc     #1              ; value -= 1
+        bcs     :-
+        cld
+        tya                     ; A = result
+
+        ;; Push to stack
+        pha
         dex
         bne     bloop
 
-        ;; Now $200...$207 is y/m/d/w/H/M/S/f
+        ;; --------------------------------------------------
+        ;; Now stack has y/m/d/w/H/M/S/F
 
-        ;; Update ProDOS date/time.
-        lda     $0204           ; hour
-        sta     TIMELO+1
+        pla                     ; year
+        sta     DATELO+1
 
-        lda     $0205           ; minute
-        sta     TIMELO
+        pla                     ; month
+        asl
+        asl
+        asl
+        asl
+        asl
+        sta     DATELO
+        rol     DATELO+1
 
-        lda     $0201           ; month
-        asl     a
-        asl     a
-        asl     a
-        asl     a
-        asl     a
-
-        ora     $0202           ; day
+        pla                     ; day
+        ora     DATELO
         sta     DATELO
 
-        lda     $0200           ; year
-        rol     a
-        sta     DATELO+1
+        pla                     ; skip week
+
+        pla                     ; hour
+        sta     TIMELO+1
+
+        pla                     ; minute
+        sta     TIMELO
+
+        pla                     ; skip seconds
+        pla                     ; skip fraction
+
+        ;; --------------------------------------------------
+        ;; Finish up
 
         pla
         bmi     done
-st4:    sta     $CFFF           ; self-modified
+st4:    sta     $CFFF           ; self-modified ($CFFF or SLOTCXROM)
 done:   plp
         rts
 
@@ -361,11 +373,9 @@ unlock:
         ;; NSC unlock sequence
         .byte   $5C, $A3, $3A, $C5
         .byte   $5C, $A3, $3A, $C5
-        .byte   $00
 
         sizeof_driver := * - driver
         .assert sizeof_driver <= 125, error, "Clock code must be <= 125 bytes"
-
 
 ;;; ************************************************************
 .ifndef JUMBO_CLOCK_DRIVER
