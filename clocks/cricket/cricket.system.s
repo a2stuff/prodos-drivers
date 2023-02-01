@@ -35,9 +35,8 @@
 
         read_delay_hi = $3 * 3 ; ($300 iterations is normal * 3.6MHz)
 
-.ifndef JUMBO_CLOCK_DRIVER
+        .undef PRODUCT
         .define PRODUCT "Cricket Clock"
-.endif ; JUMBO_CLOCK_DRIVER
 
 ;;; ============================================================
 ;;; Ensure there is not a previous clock driver installed.
@@ -214,7 +213,6 @@ loop:   lda     driver,y
 
         lda     ROMIN2
 
-.ifndef JUMBO_CLOCK_DRIVER
         ;; Display success message
         jsr     log_message
         scrcode PRODUCT, " - "
@@ -222,7 +220,6 @@ loop:   lda     driver,y
 
         ;; Display the current date
         jsr     cout_date
-.endif ; JUMBO_CLOCK_DRIVER
 
         clc                     ; success
         rts                     ; done!

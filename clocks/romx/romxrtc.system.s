@@ -45,9 +45,8 @@ SEL_MBANK     :=  $F851       ; Select Main bank reg
 ;;;
 ;;; ============================================================
 
-.ifndef JUMBO_CLOCK_DRIVER
+        .undef PRODUCT
         .define PRODUCT "ROMX Clock"
-.endif ; JUMBO_CLOCK_DRIVER
 
 ;;; ============================================================
 ;;; Ensure there is not a previous clock driver installed.
@@ -157,7 +156,6 @@ loop:   lda     ClockDrv,y
 
         lda     ROMIN2
 
-.ifndef JUMBO_CLOCK_DRIVER
         ;; Display success message
         jsr     log_message
         scrcode PRODUCT, " - "
@@ -165,7 +163,6 @@ loop:   lda     ClockDrv,y
 
         ;; Display the current date
         jsr     cout_date
-.endif ; JUMBO_CLOCK_DRIVER
 
         clc                     ; success
         rts                     ; done!

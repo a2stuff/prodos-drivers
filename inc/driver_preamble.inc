@@ -1,3 +1,5 @@
+.define PRODUCT "Unknown"
+
 ;;; ------------------------------------------------------------
 
         ;; SYS files load at $2000; relocates self to $1000

@@ -30,6 +30,7 @@
 ;;; ============================================================
 ;;; Configuration Parameters
 
+        .undef PRODUCT
         .define PRODUCT "RAMWorks RAM Disk"
 
 zp_sig_addr             := $06

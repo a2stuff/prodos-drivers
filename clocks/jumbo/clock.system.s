@@ -44,6 +44,7 @@
 ;;;
 ;;; ============================================================
 
+        .undef PRODUCT
         .define PRODUCT "Jumbo Clock Driver"
 
 .proc maybe_install_driver
