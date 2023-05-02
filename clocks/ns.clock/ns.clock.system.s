@@ -137,10 +137,12 @@ not_found:
         bpl     :-
 
 .ifndef JUMBO_CLOCK_DRIVER
+.if ::LOG_FAILURE
         ;; Show failure message
         jsr     log_message
         scrcode PRODUCT, " - Not Found."
         .byte   0
+.endif ; ::LOG_FAILURE
 .endif ; JUMBO_CLOCK_DRIVER
 
         sec                     ; failure
@@ -193,6 +195,7 @@ loop:   lda     driver,y
 
         lda     ROMIN2
 
+.if ::LOG_SUCCESS
         ;; Display success message
         jsr     log_message
         scrcode PRODUCT, " - "
@@ -200,6 +203,7 @@ loop:   lda     driver,y
 
         ;; Display the current date
         jsr     cout_date
+.endif ; ::LOG_SUCCESS
 
         clc                     ; success
         rts                     ; done!

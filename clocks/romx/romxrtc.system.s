@@ -91,10 +91,12 @@ nope:   sec                     ; not found
         bcc     install_driver  ; found clock!
 
 .ifndef JUMBO_CLOCK_DRIVER
+.if ::LOG_FAILURE
         ;; Show failure message
         jsr     log_message
         scrcode PRODUCT, " - Not Found."
         .byte   0
+.endif ; ::LOG_FAILURE
 .endif ; JUMBO_CLOCK_DRIVER
 
         sec                     ; failure
@@ -156,6 +158,7 @@ loop:   lda     ClockDrv,y
 
         lda     ROMIN2
 
+.if ::LOG_SUCCESS
         ;; Display success message
         jsr     log_message
         scrcode PRODUCT, " - "
@@ -163,6 +166,7 @@ loop:   lda     ClockDrv,y
 
         ;; Display the current date
         jsr     cout_date
+.endif ; ::LOG_SUCCESS
 
         clc                     ; success
         rts                     ; done!

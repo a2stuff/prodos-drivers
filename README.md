@@ -67,3 +67,39 @@ The intent is that you use a tool like Copy II Plus or [Apple II DeskTop](https:
 * `BASIC.SYSTEM` - which will not be automatically invoked, but is available to manually invoke
 
 Alternately, you might want to install some drivers then immediately launch into BASIC. In that case, put `BASIC.SYSTEM` after the drivers in place of `QUIT.SYSTEM`.
+
+# Building
+
+Fetch, build, and install [cc65](http://cc65.github.io/cc65/):
+
+```
+git clone https://github.com/cc65/cc65
+make -C cc65 && make -C cc65 avail
+```
+
+Fetch and build this repo:
+
+```
+git clone https://github.com/a2stuff/prodos-drivers
+cd prodos-drivers
+make
+```
+
+To make a disk image, fetch, build and install [Cadius](https://github.com/mach-kernel/cadius):
+
+```
+git clone https://github.com/mach-kernel/cadius
+make -C cadius && make -C cadius install
+```
+
+Then you can:
+
+```
+cd prodos-drivers
+make && make package
+```
+
+This will produce `prodos-drivers.po`, a disk image for use with emulators or tools like [ADTPro](http://adtpro.com/).
+
+Notes:
+* Specify `LOG_SUCCESS=0` and/or `LOG_FAILURE=0` (e.g. `make LOG_SUCCESS=0`) to build with driver success and/or error logging suppressed.

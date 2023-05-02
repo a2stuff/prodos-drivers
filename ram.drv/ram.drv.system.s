@@ -407,9 +407,11 @@ finish: bit     ROMIN2
 install_success:
         sta     ALTZPOFF
 
+.if ::LOG_SUCCESS
         jsr     log_message
         scrcode PRODUCT, " - "
         .byte   0
+.endif ; ::LOG_SUCCESS
 
         ;; Initialize Applesoft zero page locations required by LINPRNT
         copy    #0, SHIFT_SIGN_EXT ; required by FP routines
@@ -430,9 +432,11 @@ install_success:
 install_failure:
         sta     ALTZPOFF
 
+.if ::LOG_FAILURE
         jsr     log_message
         scrcode PRODUCT, " - Not Found"
         .byte   0
+.endif ; ::LOG_FAILURE
 
         rts
 

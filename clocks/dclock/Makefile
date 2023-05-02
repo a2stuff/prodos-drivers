@@ -9,11 +9,15 @@ HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 TARGETS = \
 	$(OUTDIR)/dclock.system.SYS
 
+LOG_SUCCESS=1
+LOG_FAILURE=1
+
 # For timestamps
 MM = $(shell date "+%-m")
 DD = $(shell date "+%-d")
 YY = $(shell date "+%-y")
-DEFINES = -D DD=$(DD) -D MM=$(MM) -D YY=$(YY)
+DEFINES = -D DD=$(DD) -D MM=$(MM) -D YY=$(YY) \
+	-D LOG_SUCCESS=$(LOG_SUCCESS) -D LOG_FAILURE=$(LOG_FAILURE)
 
 XATTR := $(shell command -v xattr 2> /dev/null)
 

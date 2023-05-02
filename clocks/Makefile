@@ -4,6 +4,9 @@ targets := ns.clock cricket dclock romx fujinet jumbo
 
 all: $(targets)
 
+export LOG_SUCCESS
+export LOG_FAILURE
+
 # Build all targets
 $(targets):
 	@tput setaf 3 && echo "Building: $@" && tput sgr0

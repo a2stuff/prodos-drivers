@@ -4,6 +4,9 @@ targets := clocks selectors ram.drv util textcolors
 
 all: $(targets)
 
+export LOG_SUCCESS=1
+export LOG_FAILURE=1
+
 # Build all targets
 $(targets):
 	@tput setaf 3 && echo "Building: $@" && tput sgr0
