@@ -75,6 +75,7 @@ ssc_not_found:
 
         ;; Init SSC and try the "Read Cricket ID code" sequence.
 init_ssc:
+        sei
         lda     COMMAND         ; save status of SSC registers
         sta     saved_command
         lda     CONTROL
