@@ -75,6 +75,7 @@ ssc_not_found:
 
         ;; Init SSC and try the "Read Cricket ID code" sequence.
 init_ssc:
+        php
         sei
         lda     COMMAND         ; save status of SSC registers
         sta     saved_command
@@ -114,10 +115,12 @@ digit:  cmp     #HI('0')          ; < '0' ?
 
 cricket_found:
         jsr     restore_cmd_ctl
+        plp
         jmp     install_driver
 
 cricket_not_found:
         jsr     restore_cmd_ctl
+        plp
         ;; fall through...
 
 not_found:
