@@ -349,6 +349,7 @@ slot:   .byte   0
 driver:
         php
         sei
+        lda     $C00B           ; Ultrawarp bug workaround c/o @bobbimanners
 ld4:    lda     $CFFF           ; self-modified ($CFFF or RDCXROM)
         pha
 st1:    sta     $C300           ; self-modified ($Cn00 or INTCXROM)
@@ -456,6 +457,7 @@ unlock:
 
         php
         sei
+        lda     $C00B           ; Ultrawarp bug workaround c/o @bobbimanners
 ld4:    lda     $CFFF           ; self-modified ($CFFF or RDCXROM)
         pha
 st1:    sta     $C300           ; self-modified ($Cn00 or INTCXROM)
