@@ -10,6 +10,7 @@ TARGETS = \
 	$(OUTDIR)/prodos.mod.BIN \
 	$(OUTDIR)/cricket.system.SYS \
 	$(OUTDIR)/test.BIN \
+	$(OUTDIR)/set.datetime.BIN \
 	$(OUTDIR)/set.time.BIN \
 	$(OUTDIR)/set.date.BIN
 

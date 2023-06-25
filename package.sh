@@ -20,6 +20,7 @@ add_file () {
 }
 
 add_file "clocks/cricket/out/cricket.system.SYS"    "cricket.system#FF0000"  "/$VOLNAME"
+add_file "clocks/cricket/out/set.datetime.BIN"      "set.datetime#062000"    "/$VOLNAME/CRICKET.UTIL"
 add_file "clocks/cricket/out/set.date.BIN"          "set.date#062000"        "/$VOLNAME/CRICKET.UTIL"
 add_file "clocks/cricket/out/set.time.BIN"          "set.time#062000"        "/$VOLNAME/CRICKET.UTIL"
 add_file "clocks/cricket/out/test.BIN"              "test#062000"            "/$VOLNAME/CRICKET.UTIL"
