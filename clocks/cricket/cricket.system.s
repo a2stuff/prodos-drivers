@@ -77,10 +77,12 @@ ssc_not_found:
 init_ssc:
         php
         sei
-        lda     COMMAND         ; save status of SSC registers
-        sta     saved_command
-        lda     CONTROL
-        sta     saved_control
+
+        ;; Reset SSC
+        sta     KBDSTRB         ; Port 2 DSR line connected to KBDSTRB
+        lda     #0
+        sta     COMMAND
+        sta     CONTROL
 
         ;; Configure SSC
         lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
@@ -114,12 +116,10 @@ digit:  cmp     #HI('0')          ; < '0' ?
         bcc     :-
 
 cricket_found:
-        jsr     restore_cmd_ctl
         plp
         jmp     install_driver
 
 cricket_not_found:
-        jsr     restore_cmd_ctl
         plp
         ;; fall through...
 
@@ -135,16 +135,6 @@ not_found:
 
         sec                     ; failure
         rts
-
-restore_cmd_ctl:
-        lda     saved_control
-        sta     CONTROL
-        lda     saved_command
-        sta     COMMAND
-        rts
-
-saved_command:  .byte   0
-saved_control:  .byte   0
 .endproc
 
         ;; Write byte in A

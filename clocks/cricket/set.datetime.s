@@ -24,6 +24,15 @@
 
         jsr     GETLN2
 
+        php
+        sei
+
+        ;; Reset SSC
+        sta     KBDSTRB         ; Port 2 DSR line connected to KBDSTRB
+        lda     #0
+        sta     COMMAND
+        sta     CONTROL
+
         ;; Configure SSC
         lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
         sta     COMMAND
@@ -46,6 +55,8 @@
         cmp     #HI(ASCII_CR)
         bne     :-
 
+        plp
+
         ;; --------------------------------------------------
         ;; Time
 
@@ -54,6 +65,15 @@
         .byte   0
 
         jsr     GETLN2
+
+        php
+        sei
+
+        ;; Reset SSC
+        sta     KBDSTRB         ; Port 2 DSR line connected to KBDSTRB
+        lda     #0
+        sta     COMMAND
+        sta     CONTROL
 
         ;; Configure SSC
         lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
@@ -76,6 +96,8 @@
         inx
         cmp     #HI(ASCII_CR)
         bne     :-
+
+        plp
 
         rts
 .endproc
