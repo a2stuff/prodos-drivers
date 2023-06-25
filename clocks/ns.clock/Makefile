@@ -7,7 +7,8 @@ OUTDIR = out
 HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
 TARGETS = \
-	$(OUTDIR)/ns.clock.system.SYS
+	$(OUTDIR)/ns.clock.system.SYS \
+	$(OUTDIR)/set.datetime.BIN
 
 LOG_SUCCESS=1
 LOG_FAILURE=1
@@ -35,7 +36,7 @@ clean:
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
-$(OUTDIR)/%.SYS: $(OUTDIR)/%.o
+$(OUTDIR)/%.BIN $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<
 ifdef XATTR
 	xattr -wx prodos.AuxType '00 20' $@

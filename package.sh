@@ -12,6 +12,7 @@ VOLNAME="drivers"
 rm -f "$IMGFILE"
 cadius CREATEVOLUME "$IMGFILE" "$VOLNAME" 140KB --no-case-bits --quiet
 cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/CRICKET.UTIL" --no-case-bits --quiet
+cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/NSCLOCK.UTIL" --no-case-bits --quiet
 
 add_file () {
     cp "$1" "$PACKDIR/$2"
@@ -24,6 +25,7 @@ add_file "clocks/cricket/out/set.time.BIN"          "set.time#062000"        "/$
 add_file "clocks/cricket/out/test.BIN"              "test#062000"            "/$VOLNAME/CRICKET.UTIL"
 add_file "clocks/dclock/out/dclock.system.SYS"      "dclock.system#FF0000"   "/$VOLNAME"
 add_file "clocks/ns.clock/out/ns.clock.system.SYS"  "ns.clock.system#FF0000" "/$VOLNAME"
+add_file "clocks/ns.clock/out/set.datetime.BIN"     "set.datetime#062000"    "/$VOLNAME/NSCLOCK.UTIL"
 add_file "clocks/romx/out/romxrtc.system.SYS"       "romxrtc.system#FF0000"  "/$VOLNAME"
 add_file "clocks/fujinet/out/fn.clock.system.SYS"   "fn.clock.system#FF0000" "/$VOLNAME"
 add_file "clocks/jumbo/out/clock.system.SYS"        "clock.system#FF0000"    "/$VOLNAME"
