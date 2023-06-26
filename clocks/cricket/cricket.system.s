@@ -90,6 +90,15 @@ init_ssc:
         lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
         sta     CONTROL
 
+        ;; Reset Cricket
+        jsr     readbyte        ; done on original disk
+        lda     #HI(ASCII_CR)   ; two carriage returns
+        jsr     sendbyte
+        lda     #HI(ASCII_CR)
+        jsr     sendbyte
+        lda     #HI('!')        ; Reset Cricket (everything but time/date)
+        jsr     sendbyte
+
         ;; Read Cricket ID code: 00 ($00)
         lda     #0
         jsr     sendbyte
