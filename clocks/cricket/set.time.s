@@ -16,7 +16,7 @@
 
 .proc main
         jsr     zstrout
-        scrcode "\rTime: HH:MM:SS XM\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08"
+        scrcode "\rTime: HH:MM:SS\x08\x08\x08\x08\x08\x08\x08\x08"
         .byte   0
 
         jsr     GETLN2
@@ -37,7 +37,7 @@
         sta     CONTROL
 
         ;; Clock Commands
-        ;; Set Time "ST HH:MM:SS:XM"
+        ;; Set Time "ST HH:MM:SS"
         lda     #HI('S')
         jsr     sendbyte
         lda     #HI('T')
