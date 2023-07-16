@@ -81,8 +81,9 @@ init_ssc:
         ;; Reset SSC
         sta     KBDSTRB         ; Port 2 DSR line connected to KBDSTRB
         lda     #0
-        sta     COMMAND
+        sta     COMMAND         ; hardware reset all Port 2 ACIA registers
         sta     CONTROL
+        sta     STATUS
 
         ;; Configure SSC
         lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
