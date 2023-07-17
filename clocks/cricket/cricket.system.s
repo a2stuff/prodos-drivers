@@ -77,28 +77,23 @@ ssc_not_found:
 init_ssc:
         php
         sei
+        lda     COMMAND         ; save status of SSC registers
+        sta     saved_command
+        lda     CONTROL
+        sta     saved_control
 
-        ;; Reset SSC
-        sta     KBDSTRB         ; Port 2 DSR line connected to KBDSTRB
-        lda     #0
-        sta     COMMAND         ; hardware reset all Port 2 ACIA registers
-        sta     CONTROL
-        sta     STATUS
+        ;; Reset the Cricket (stops any playing notes & ensures Cricket is listening)
+        jsr     restore_cmd_ctl ; have to change registers for this to work
+        jsr     reset_cricket
+        jsr     restore_cmd_ctl
+        jsr     reset_cricket   ; does it twice in original Cricket driver
+        jsr     restore_cmd_ctl
 
         ;; Configure SSC
         lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
         sta     COMMAND
         lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
         sta     CONTROL
-
-        ;; Reset Cricket
-        jsr     readbyte        ; done on original disk
-        lda     #HI(ASCII_CR)   ; two carriage returns
-        jsr     sendbyte
-        lda     #HI(ASCII_CR)
-        jsr     sendbyte
-        lda     #HI('!')        ; Reset Cricket (everything but time/date)
-        jsr     sendbyte
 
         ;; Read Cricket ID code: 00 ($00)
         lda     #0
@@ -126,10 +121,12 @@ digit:  cmp     #HI('0')          ; < '0' ?
         bcc     :-
 
 cricket_found:
+        jsr     restore_cmd_ctl
         plp
         jmp     install_driver
 
 cricket_not_found:
+        jsr     restore_cmd_ctl
         plp
         ;; fall through...
 
@@ -145,6 +142,31 @@ not_found:
 
         sec                     ; failure
         rts
+
+reset_cricket:
+        lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
+        sta     COMMAND
+        lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
+        sta     CONTROL
+        
+        jsr     readbyte        ; done on original disk
+        lda     #HI(ASCII_CR)   ; two carriage returns
+        jsr     sendbyte
+        lda     #HI(ASCII_CR)
+        jsr     sendbyte
+        lda     #HI('!')        ; Reset Cricket (everything but time/date)
+        jsr     sendbyte
+        rts
+
+restore_cmd_ctl:
+        lda     saved_control
+        sta     CONTROL
+        lda     saved_command
+        sta     COMMAND
+        rts
+
+saved_command:  .byte   0
+saved_control:  .byte   0
 .endproc
 
         ;; Write byte in A
