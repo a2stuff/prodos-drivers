@@ -82,6 +82,13 @@ init_ssc:
         lda     CONTROL
         sta     saved_control
 
+        ;; Reset the Cricket (stops any playing notes & ensures Cricket is listening)
+        jsr     restore_cmd_ctl ; have to change registers for this to work
+        jsr     reset_cricket
+        jsr     restore_cmd_ctl
+        jsr     reset_cricket   ; does it twice in original Cricket driver
+        jsr     restore_cmd_ctl
+
         ;; Configure SSC
         lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
         sta     COMMAND
@@ -114,11 +121,6 @@ digit:  cmp     #HI('0')          ; < '0' ?
         bcc     :-
 
 cricket_found:
-        jsr     restore_cmd_ctl ; have to change registers for this to work
-        jsr     reset_cricket
-        jsr     restore_cmd_ctl
-        jsr     reset_cricket   ; does it twice in original Cricket driver
-        jsr     restore_cmd_ctl
         plp
         jmp     install_driver
 
