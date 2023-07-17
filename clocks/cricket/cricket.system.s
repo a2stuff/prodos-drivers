@@ -121,6 +121,7 @@ digit:  cmp     #HI('0')          ; < '0' ?
         bcc     :-
 
 cricket_found:
+        jsr     restore_cmd_ctl
         plp
         jmp     install_driver
 
