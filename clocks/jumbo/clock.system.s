@@ -28,14 +28,14 @@
 .scope romx
         .include "../romx/romxrtc.system.s"
 .endscope
-.scope dclock
-        .include "../dclock/dclock.system.s"
-.endscope
 .scope fujinet
         .include "../fujinet/fn.clock.system.s"
 .endscope
 .scope cricket
         .include "../cricket/cricket.system.s"
+.endscope
+.scope dclock
+        .include "../dclock/dclock.system.s"
 .endscope
 
 ;;; ============================================================
@@ -58,13 +58,13 @@
         jsr     romx::maybe_install_driver
         bcc     ret
 
-        jsr     dclock::maybe_install_driver
-        bcc     ret
-
         jsr     fujinet::maybe_install_driver
         bcc     ret
 
         jsr     cricket::maybe_install_driver
+        bcc     ret
+
+        jsr     dclock::maybe_install_driver
         bcc     ret
 
 ret:    rts

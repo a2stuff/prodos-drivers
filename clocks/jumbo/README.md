@@ -7,7 +7,7 @@ The drivers are (in order):
 * No-Slot Clock
 * ROMX
 * FujiNet
-* DClock
 * Cricket!
+* DClock
 
 The installer is silent - no output is shown on either failure or success.
