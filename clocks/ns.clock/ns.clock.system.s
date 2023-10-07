@@ -278,6 +278,7 @@ loop:   lda     driver,y
 driver:
         php
         sei
+        lda     PTRIG           ; Slow ZIP, IIc+ accelerator, etc
         lda     $C00B           ; Ultrawarp bug workaround c/o @bobbimanners
 ld4:    lda     $CFFF           ; self-modified ($CFFF or RDCXROM)
         pha
