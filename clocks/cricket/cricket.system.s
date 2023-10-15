@@ -83,17 +83,8 @@ init_ssc:
         sta     saved_control
 
         ;; Reset the Cricket (stops any playing notes & ensures Cricket is listening)
-        jsr     restore_cmd_ctl ; have to change registers for this to work
         jsr     reset_cricket
-        jsr     restore_cmd_ctl
         jsr     reset_cricket   ; does it twice in original Cricket driver
-        jsr     restore_cmd_ctl
-
-        ;; Configure SSC
-        lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
-        sta     COMMAND
-        lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
-        sta     CONTROL
 
         ;; Read Cricket ID code: 00 ($00)
         lda     #0
@@ -144,6 +135,12 @@ not_found:
         rts
 
 reset_cricket:
+        ;; Reset SSC
+        lda     #0
+        sta     COMMAND         ; hardware reset all Port 2 ACIA registers
+        sta     CONTROL
+
+        ;; Configure SSC
         lda     #%00001011      ; no parity/echo/interrupts, RTS low, DTR low
         sta     COMMAND
         lda     #%10011110      ; 9600 baud, 8 data bits, 2 stop bits
