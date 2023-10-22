@@ -89,6 +89,7 @@ init_ssc:
         ;; Read Cricket ID code: 00 ($00)
         lda     #0
         jsr     sendbyte
+        bcs     cricket_not_found ; timeout
 
         ;; "The Cricket will return a "C" (195, $C3) followed by a
         ;; version number (in ASCII) and a carriage return (141, $8D)."
@@ -168,12 +169,33 @@ saved_control:  .byte   0
 
         ;; Write byte in A
 .proc sendbyte
+        tries := $100 * read_delay_hi
+        counter := $A5
+
         pha
-:       lda     STATUS
+
+        lda     #<tries
+        sta     counter
+        lda     #>tries
+        sta     counter+1
+
+check:  lda     STATUS
         and     #(1 << 4)       ; transmit register empty? (bit 4)
-        beq     :-              ; nope, keep waiting
+        bne     ready           ; yes, ready to write
+
+        dec     counter
+        bne     check
+        dec     counter+1
+        bne     check
+
+        pla
+        sec                     ; failed
+        rts
+
+ready:  
         pla
         sta     TDREG
+        clc
         rts
 .endproc
 
