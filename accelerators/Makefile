@@ -1,11 +1,11 @@
-targets := clocks selectors accelerators ram.drv util textcolors
+targets := zipchip
 
-.PHONY: all $(targets) package
+.PHONY: all $(targets)
 
 all: $(targets)
 
-export LOG_SUCCESS=1
-export LOG_FAILURE=1
+export LOG_SUCCESS
+export LOG_FAILURE
 
 # Build all targets
 $(targets):
@@ -20,6 +20,3 @@ clean:
 	  tput setaf 2 && echo "cleaning $$dir" && tput sgr0; \
 	  $(MAKE) -C $$dir clean; \
 	done
-
-package:
-	./package.sh

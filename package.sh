@@ -35,6 +35,7 @@ add_file "selectors/out/bbb.system.SYS"      "bbb.system#FF0000"      "/$VOLNAME
 add_file "selectors/out/buhbye.system.SYS"   "buhbye.system#FF0000"   "/$VOLNAME"
 add_file "selectors/out/bye.system.SYS"      "bye.system#FF0000"      "/$VOLNAME"
 add_file "selectors/out/selector.system.SYS" "selector.system#FF0000" "/$VOLNAME"
+add_file "accelerators/zipchip/out/zipchip.system.SYS" "zipchip.system#FF0000" "/$VOLNAME"
 add_file "util/out/quit.system.SYS"          "quit.system#FF0000"     "/$VOLNAME"
 add_file "util/out/pause.system.SYS"         "pause.system#FF0000"    "/$VOLNAME"
 add_file "util/out/me.first.system.SYS"      "me.first.system#FF0000" "/$VOLNAME"

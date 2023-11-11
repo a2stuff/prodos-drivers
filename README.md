@@ -32,6 +32,8 @@ This repo includes the following drivers/modifications:
   * ROMX Real-Time Clock
   * FujiNet Clock
   * A "jumbo" driver that includes all of the above (just called `CLOCK.SYSTEM`)
+* Accelerators
+  * ZIP CHIP configuration (sets the chip to slow on speaker access)
 * RAM Disk drivers
   * RAMWorks Driver by Glen E. Bredon
 * Quit dispatcher/selector (`BYE` routines)
@@ -60,6 +62,7 @@ The intent is that you use a tool like Copy II Plus or [Apple II DeskTop](https:
 * `FN.CLOCK.SYSTEM` - install FujiNet clock driver, if present
 * `DCLOCK.SYSTEM` - install DClock clock driver, if present
 * `CRICKET.SYSTEM` - install Cricket! clock driver, if present
+* `ZIPCHIP.SYSTEM` - slow the ZIP CHIP on speaker access, if present
 * `RAM.DRV.SYSTEM` - install RamWorks RAM disk driver, if present
 * `BUHBYE.SYSTEM` - install a customized Quit handler to replace the built-in one
 * `PAUSE.SYSTEM` - pause for a moment, so that you can inspect the output of the above
