@@ -4,7 +4,7 @@ LDFLAGS = --config apple2-asm.cfg
 
 OUTDIR = out
 
-HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc) \
+HEADERS = $(wildcard *.inc) $(wildcard ../../inc/*.inc) \
 	../ns.clock/ns.clock.system.s \
 	../romx/romxrtc.system.s \
 	../dclock/dclock.system.s \
