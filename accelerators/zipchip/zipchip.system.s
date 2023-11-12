@@ -32,7 +32,8 @@
 
         ZC_REG_ENABLE   := $C05B
         ;; Write - Any hex byte written will enable ZIP CHIP
-        ;;
+
+        ZC_REG_STATUS   := $C05B
         ;; Read - Read the current status of the following:
         ;; bit 0 & 1 - Ramsize where
         ;;   RAMSIZE1 RAMSIZE0 SIZE
@@ -131,13 +132,24 @@
         ora     #%00000001      ; bit 0 = Speaker
         sta     ZC_REG_SLOTSPKR
 
+        ;; Get size
+        lda     ZC_REG_STATUS
+        and     #%00000011
+        asl
+        tax
+        lda     size_table,x
+        sta     size
+        lda     size_table+1,x
+        sta     size+1
+
         ;; Lock
         lda     #kZCLock
         sta     ZC_REG_LOCK
 
-        ;; TODO: Include cache size?
         jsr     log_message
-        scrcode PRODUCT, " - Configured."
+        scrcode PRODUCT, " "
+size:   .res    2               ; patched with cache size
+        scrcode "K - Configured."
         .byte   0
 
         plp
@@ -150,6 +162,14 @@ no_zip:
 
         plp
         rts
+
+size_table:
+        scrcode " 8"
+        scrcode "16"
+        scrcode "32"
+        scrcode "64"
+
+
 
 .endproc
 
