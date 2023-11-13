@@ -2,17 +2,18 @@
 CAFLAGS = --target apple2enh --list-bytes 0
 LDFLAGS = --config apple2-asm.cfg
 
-OUTDIR = out
+OUTDIR = ../../out
+UTILDIR = $(OUTDIR)/cricket.util
 
 HEADERS = $(wildcard *.inc) $(wildcard ../../inc/*.inc)
 
 TARGETS = \
-	$(OUTDIR)/prodos.mod.BIN \
+	$(UTILDIR)/prodos.mod.BIN \
 	$(OUTDIR)/cricket.system.SYS \
-	$(OUTDIR)/test.BIN \
-	$(OUTDIR)/set.datetime.BIN \
-	$(OUTDIR)/set.time.BIN \
-	$(OUTDIR)/set.date.BIN
+	$(UTILDIR)/test.BIN \
+	$(UTILDIR)/set.datetime.BIN \
+	$(UTILDIR)/set.time.BIN \
+	$(UTILDIR)/set.date.BIN
 
 LOG_SUCCESS=1
 LOG_FAILURE=1
@@ -27,20 +28,25 @@ DEFINES = -D DD=$(DD) -D MM=$(MM) -D YY=$(YY) \
 XATTR := $(shell command -v xattr 2> /dev/null)
 
 .PHONY: clean all
-all: $(OUTDIR) $(TARGETS)
+all: $(OUTDIR) $(UTILDIR) $(TARGETS)
 
-$(OUTDIR):
-	mkdir -p $(OUTDIR)
+$(OUTDIR) $(UTILDIR):
+	mkdir -p $@
 
 clean:
 	rm -f $(OUTDIR)/*.o
 	rm -f $(OUTDIR)/*.list
+	rm -f $(UTILDIR)/*.o
+	rm -f $(UTILDIR)/*.list
 	rm -f $(TARGETS)
 
-$(OUTDIR)/%.o: %.s $(HEADERS)
+$(OUTDIR)/%.o $(UTILDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
-$(OUTDIR)/%.BIN $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
+$(OUTDIR)/%.SYS: $(OUTDIR)/%.o
+	ld65 $(LDFLAGS) -o $@ $<
+
+$(UTILDIR)/%.BIN: $(UTILDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<
 ifdef XATTR
 	xattr -wx prodos.AuxType '00 20' $@

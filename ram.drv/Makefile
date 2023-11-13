@@ -2,7 +2,7 @@
 CAFLAGS = --target apple2enh --list-bytes 0
 LDFLAGS = --config apple2-asm.cfg
 
-OUTDIR = out
+OUTDIR = ../out
 
 HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
