@@ -7,7 +7,8 @@ OUTDIR = ../out
 HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
 TARGETS = \
-	$(OUTDIR)/ram.drv.system.SYS
+	$(OUTDIR)/ram.drv.system.SYS \
+	$(OUTDIR)/ram.drv.setup.SYS
 
 export LOG_SUCCESS=1
 export LOG_FAILURE=1
@@ -35,8 +36,8 @@ clean:
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
+$(OUTDIR)/%.setup.o: %.system.s $(HEADERS)
+	ca65 $(CAFLAGS) $(DEFINES) -D BUILD_SETUP_FILE --listing $(basename $@).list -o $@ $<
+
 $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<
-ifdef XATTR
-	xattr -wx prodos.AuxType '00 20' $@
-endif

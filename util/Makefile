@@ -9,7 +9,9 @@ HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 TARGETS = \
 	$(OUTDIR)/quit.system.SYS \
 	$(OUTDIR)/pause.system.SYS \
+	$(OUTDIR)/pause.setup.SYS \
 	$(OUTDIR)/me.first.system.SYS \
+	$(OUTDIR)/me.first.setup.SYS \
 	$(OUTDIR)/date.BIN
 
 # For timestamps
@@ -33,6 +35,9 @@ clean:
 
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
+
+$(OUTDIR)/%.setup.o: %.system.s $(HEADERS)
+	ca65 $(CAFLAGS) $(DEFINES) -D BUILD_SETUP_FILE --listing $(basename $@).list -o $@ $<
 
 $(OUTDIR)/%.BIN $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<

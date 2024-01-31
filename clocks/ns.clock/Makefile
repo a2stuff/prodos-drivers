@@ -9,6 +9,7 @@ HEADERS = $(wildcard *.inc) $(wildcard ../../inc/*.inc)
 
 TARGETS = \
 	$(OUTDIR)/ns.clock.system.SYS \
+	$(OUTDIR)/ns.clock.setup.SYS \
 	$(UTILDIR)/set.datetime.BIN
 
 LOG_SUCCESS=1
@@ -38,6 +39,9 @@ clean:
 
 $(OUTDIR)/%.o $(UTILDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
+
+$(OUTDIR)/%.setup.o: %.system.s $(HEADERS)
+	ca65 $(CAFLAGS) $(DEFINES) -D BUILD_SETUP_FILE --listing $(basename $@).list -o $@ $<
 
 $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<

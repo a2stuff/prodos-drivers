@@ -38,7 +38,6 @@ zp_sig_addr             := $06
 zpproc_addr             := $B0
 zpproc_relay_addr       := $2D0
 
-data_buf                := $1C00 ; I/O when chaining to next SYS file
 driver_target           := $FF00 ; Install location in ProDOS
 
 
@@ -710,8 +709,6 @@ map1            := *+2          ; len: $80
 map2            := *+2+$80      ; len: $80
 stash_00        := *+2+$100     ; len: $80
 stash_01        := *+2+$180     ; len: $80
-
-        .assert stash_01+$80 < data_buf, error, "Too long"
 
 ;;; ************************************************************
         .include "../inc/driver_postamble.inc"

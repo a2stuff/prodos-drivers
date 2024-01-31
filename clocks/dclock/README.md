@@ -11,3 +11,5 @@ Like other drivers here, this one will:
   * Only attempts detection if the system is a an Apple IIc
 * If detected, installs into ProDOS directly, following Technical Reference Manual requirements.
 * Chains to the next `.SYSTEM` file in the directory.
+
+`DCLOCK.SETUP` is for use with [SETUP.SYSTEM](../../setup/README.md).

@@ -4,14 +4,17 @@
 
         ;; SYS files load at $2000; relocates self to $1000
         .org SYS_ADDR
+
+.ifndef BUILD_SETUP_FILE
         dst_addr := $1000
-
-;;; ------------------------------------------------------------
-
         jmp     relocate
+.else
+        jmp     main
+.endif
 
         .byte   MM, DD, YY      ; version date stamp
 
+.ifndef BUILD_SETUP_FILE
 ;;; ------------------------------------------------------------
 ;;; Relocate this code from $2000 (.SYSTEM start location) to $1000
 ;;; and start executing there. This is done so that the next .SYSTEM
@@ -388,6 +391,23 @@ suffix:
 
 found_self_flag:
         .byte   0
+
+.else
+
+;;; ============================================================
+;;; Main routine
+;;; ============================================================
+
+.proc main
+        jsr     maybe_install_driver
+
+        MLI_CALL QUIT, quit_params
+        brk                     ; crash if QUIT fails
+
+        DEFINE_QUIT_PARAMS quit_params
+.endproc
+
+.endif
 
 ;;; ============================================================
 ;;; Common Routines

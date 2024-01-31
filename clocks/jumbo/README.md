@@ -13,3 +13,5 @@ The drivers are (in order):
 By default, the installer logs on success so you can tell what clock was detected, but you can build with `LOG_SUCCESS=0` to prevent that.
 
 If ProDOS _already_ has a clock driver installed, the driver is checked for common Thunderclock year tables. If found, the table is updated in memory to cover 2023-2028.
+
+`CLOCK.SETUP` is for use with [SETUP.SYSTEM](../../setup/README.md).

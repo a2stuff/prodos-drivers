@@ -42,6 +42,8 @@ These `BRUN`able files are also built:
 * [SET.DATE](set.date.s) sets the Cricket's current date.
 * [SET.TIME](set.time.s) sets the Cricket's current time.
 
+`CRICKET.SETUP` is for use with [SETUP.SYSTEM](../../setup/README.md)
+
 ## Resources
 
 Cricket disks on Asimov:

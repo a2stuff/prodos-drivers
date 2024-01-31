@@ -8,9 +8,13 @@ HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
 TARGETS = \
 	$(OUTDIR)/selector.system.SYS \
+	$(OUTDIR)/selector.setup.SYS \
 	$(OUTDIR)/bye.system.SYS \
+	$(OUTDIR)/bye.setup.SYS \
 	$(OUTDIR)/bbb.system.SYS \
-	$(OUTDIR)/buhbye.system.SYS
+	$(OUTDIR)/bbb.setup.SYS \
+	$(OUTDIR)/buhbye.system.SYS \
+	$(OUTDIR)/buhbye.setup.SYS
 
 # For timestamps
 MM = $(shell date "+%-m")
@@ -34,8 +38,8 @@ clean:
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
+$(OUTDIR)/%.setup.o: %.system.s $(HEADERS)
+	ca65 $(CAFLAGS) $(DEFINES) -D BUILD_SETUP_FILE --listing $(basename $@).list -o $@ $<
+
 $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<
-ifdef XATTR
-	xattr -wx prodos.AuxType '00 20' $@
-endif

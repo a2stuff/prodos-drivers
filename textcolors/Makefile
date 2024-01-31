@@ -8,13 +8,22 @@ HEADERS = $(wildcard *.inc) $(wildcard ../inc/*.inc)
 
 TARGETS = \
 	$(OUTDIR)/a2green.system.SYS \
+	$(OUTDIR)/a2green.setup.SYS \
 	$(OUTDIR)/bw.system.SYS \
+	$(OUTDIR)/bw.setup.SYS \
 	$(OUTDIR)/deepblue.system.SYS \
+	$(OUTDIR)/deepblue.setup.SYS \
 	$(OUTDIR)/gray.system.SYS \
+	$(OUTDIR)/gray.setup.SYS \
 	$(OUTDIR)/gsblue.system.SYS \
+	$(OUTDIR)/gsblue.setup.SYS \
 	$(OUTDIR)/mint.system.SYS \
+	$(OUTDIR)/mint.setup.SYS \
 	$(OUTDIR)/pink.system.SYS \
-	$(OUTDIR)/wb.system.SYS
+	$(OUTDIR)/pink.setup.SYS \
+	$(OUTDIR)/wb.system.SYS \
+	$(OUTDIR)/wb.setup.SYS
+
 # For timestamps
 MM = $(shell date "+%-m")
 DD = $(shell date "+%-d")
@@ -37,8 +46,8 @@ clean:
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
 
+$(OUTDIR)/%.setup.o: %.system.s $(HEADERS)
+	ca65 $(CAFLAGS) $(DEFINES) -D BUILD_SETUP_FILE --listing $(basename $@).list -o $@ $<
+
 $(OUTDIR)/%.BIN $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<
-ifdef XATTR
-	xattr -wx prodos.AuxType '00 20' $@
-endif

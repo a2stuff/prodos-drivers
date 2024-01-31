@@ -1,4 +1,4 @@
-targets := clocks selectors accelerators ram.drv util textcolors
+targets := clocks selectors accelerators ram.drv setup util textcolors
 
 .PHONY: all $(targets) package
 

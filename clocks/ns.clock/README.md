@@ -12,3 +12,5 @@ Adapted from `NS.CLOCK.SYSTEM` (by "CAP"), with these changes:
 
 These `BRUN`able files are also built:
 * [SET.DATETIME](set.datetime.s) sets the No Slot Clock date/time.
+
+`NS.CLOCK.SETUP` is for use with [SETUP.SYSTEM](../../setup/README.md).

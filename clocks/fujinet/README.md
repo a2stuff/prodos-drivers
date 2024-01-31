@@ -4,6 +4,4 @@
 
 This driver is an adaptation of the other drivers in https://github.com/a2stuff/prodos-drivers
 
-
-
-
+`FN.CLOCK.SETUP` is for use with [SETUP.SYSTEM](../../setup/README.md).

@@ -71,6 +71,10 @@ The intent is that you use a tool like Copy II Plus or [Apple II DeskTop](https:
 
 Alternately, you might want to install some drivers then immediately launch into BASIC. In that case, put `BASIC.SYSTEM` after the drivers in place of `QUIT.SYSTEM`.
 
+## Alternate Approach
+
+If you want to keep your volume directory tidier, consider using [SETUP.SYSTEM](./setups/README.md) instead.
+
 # Building
 
 Fetch, build, and install [cc65](http://cc65.github.io/cc65/):

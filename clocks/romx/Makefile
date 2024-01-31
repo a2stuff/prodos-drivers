@@ -7,7 +7,8 @@ OUTDIR = ../../out
 HEADERS = $(wildcard *.inc) $(wildcard ../../inc/*.inc)
 
 TARGETS = \
-	$(OUTDIR)/romxrtc.system.SYS
+	$(OUTDIR)/romxrtc.system.SYS \
+	$(OUTDIR)/romxrtc.setup.SYS
 
 LOG_SUCCESS=1
 LOG_FAILURE=1
@@ -34,6 +35,9 @@ clean:
 
 $(OUTDIR)/%.o: %.s $(HEADERS)
 	ca65 $(CAFLAGS) $(DEFINES) --listing $(basename $@).list -o $@ $<
+
+$(OUTDIR)/%.setup.o: %.system.s $(HEADERS)
+	ca65 $(CAFLAGS) $(DEFINES) -D BUILD_SETUP_FILE --listing $(basename $@).list -o $@ $<
 
 $(OUTDIR)/%.SYS: $(OUTDIR)/%.o
 	ld65 $(LDFLAGS) -o $@ $<
