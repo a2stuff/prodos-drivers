@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: a2stuff/build-install-ca65-action@v2
       - uses: a2stuff/build-install-cadius-action@v1
 
