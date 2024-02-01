@@ -73,7 +73,7 @@ Alternately, you might want to install some drivers then immediately launch into
 
 ## Alternate Approach
 
-If you want to keep your volume directory tidier, consider using [SETUP.SYSTEM](./setups/README.md) instead.
+If you want to keep your volume directory tidier, consider using [SETUP.SYSTEM](./setup/README.md) instead.
 
 # Building
 
