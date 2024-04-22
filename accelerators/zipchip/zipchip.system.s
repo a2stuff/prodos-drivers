@@ -1,5 +1,5 @@
 ;;; ZIPCHIP.SYSTEM
-;;; Configures the speaker to be temporarily slow
+;;; Configures the speaker to be temporarily slow, slots 1-4 fast
 ;;; TODO: Add a configuration utility
 
         .setcpu "6502"
@@ -127,9 +127,8 @@
         cmp     ZC_REG_SLOTSPKR
         bne     no_zip
 
-        ;; Slow on speaker access
-        lda     ZC_REG_SLOTSPKR
-        ora     #%00000001      ; bit 0 = Speaker
+        ;; Slow on speaker access, slots 1-4 fast, 5-7 normal
+        lda     #%11100001      ; bit 0 = Speaker, bit N = slot N
         sta     ZC_REG_SLOTSPKR
 
         ;; Get size

@@ -33,7 +33,7 @@ This repo includes the following drivers/modifications:
   * FujiNet Clock
   * A "jumbo" driver that includes all of the above (just called `CLOCK.SYSTEM`)
 * Accelerators
-  * ZIP CHIP configuration (sets the chip to slow on speaker access)
+  * ZIP CHIP configuration (slow on speaker access, make slots 1-4 fast)
 * RAM Disk drivers
   * RAMWorks Driver by Glen E. Bredon
 * Quit dispatcher/selector (`BYE` routines)
