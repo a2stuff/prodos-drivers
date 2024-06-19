@@ -266,10 +266,12 @@ bufloop:
 
         ;; --------------------------------------------------
         ;; Restore what was originally at `RTC_BUF`
+        ;; And fix //c+ cache while we're ad it!
 
         ldx     #0
 :       pla
         sta     RTC_BUF,x
+        lda     $F8F0,x         ; clear cache of $D8F0-D901
         inx
         cpx     #RamStubEnd-RamStub+7+1
         bne     :-
