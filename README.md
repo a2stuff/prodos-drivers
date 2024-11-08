@@ -19,7 +19,7 @@ The ProDOS operating system for the Apple II executes the first `.SYSTEM` file f
 
 Early versions of these drivers would often invoke a specific file on completion, sometimes user-configurable. The best versions of these drivers simply execute the following `.SYSTEM` file, although this is non-trivial code and often did not work with network drives.
 
-This repository collects several drivers and uses common code to chain to the next `.SYSTEM` file, suporting network drives.
+This repository collects several drivers and uses common code to chain to the next `.SYSTEM` file, supporting network drives.
 
 ## What is present here?
 
@@ -35,7 +35,7 @@ This repo includes the following drivers/modifications:
 * Accelerators
   * ZIP CHIP configuration (slow on speaker access, make slots 1-4 fast)
 * RAM Disk drivers
-  * RAMWorks Driver by Glen E. Bredon
+  * RamWorks Driver by Glen E. Bredon
 * Quit dispatcher/selector (`BYE` routines)
   * 40-column Selector (from ProDOS)
   * 80-column menu-driven Selector (from ProDOS 1.9 and 2.x)
