@@ -46,6 +46,8 @@ This repo includes the following drivers/modifications:
 
 In addition, `QUIT.SYSTEM` is present which isn't a driver but which immediately invokes the QUIT handler (a.k.a. program selector). This will happen automatically if the last driver can't find another `.SYSTEM` file, but `QUIT.SYSTEM` can be used to stop the chain if you have other `.SYSTEM` files in your root directory.
 
+If you don't have a real-time clock, `NOCLOCK.SYSTEM` will prompt you for the date/time on boot and set the ProDOS date/time, which will be used to record file creation/modification times.
+
 There's also `PAUSE.SYSTEM` which just waits for a fraction of a second before invoking the next driver file in case the log messages from the other installers goes by too fast for your taste, and `HOME.SYSTEM` in case you want the log messages to start off with a blank screen.
 
 Non-drivers that are included:

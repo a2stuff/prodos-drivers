@@ -14,6 +14,8 @@ TARGETS = \
 	$(OUTDIR)/home.setup.SYS \
 	$(OUTDIR)/me.first.system.SYS \
 	$(OUTDIR)/me.first.setup.SYS \
+	$(OUTDIR)/noclock.system.SYS \
+	$(OUTDIR)/noclock.setup.SYS \
 	$(OUTDIR)/date.BIN
 
 # For timestamps

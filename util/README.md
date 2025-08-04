@@ -10,3 +10,5 @@
   * Moves the current volume to the end of DEVLST. Niche, but useful in some circumstances.
 * [HOME.SYSTEM](home.system.s)
   * Clears the screen before invoking the next driver file. Useful if you want to start or end driver installs with a clear screen.
+* [NOCLOCK.SYSTEM](noclock.system.s)
+  * If no real-time clock is present, prompt the user then set the ProDOS date/time.
