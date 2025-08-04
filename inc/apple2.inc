@@ -61,6 +61,7 @@ ZIDBYTE         := $FBC0
 BELL1           := $FBDD
 HOME            := $FC58
 CLREOL          := $FC9C
+WAIT            := $FCA8
 RDKEY           := $FD0C
 GETLN           := $FD6A        ; with prompt character
 GETLN2          := $FD6F        ; no prompt character

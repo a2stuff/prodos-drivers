@@ -8,3 +8,5 @@
   * Waits for a fraction of a second before invoking the next driver file. Useful in case the log messages from the driver installers go by too quickly!
 * [ME.FIRST.SYSTEM](me.first.system.s)
   * Moves the current volume to the end of DEVLST. Niche, but useful in some circumstances.
+* [HOME.SYSTEM](home.system.s)
+  * Clears the screen before invoking the next driver file. Useful if you want to start or end driver installs with a clear screen.

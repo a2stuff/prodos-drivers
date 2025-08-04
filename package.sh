@@ -25,7 +25,7 @@ for file in \
         "clock" "cricket" "dclock" "fn.clock" "ns.clock" "romxrtc" \
         "ram.drv" \
         "zipchip" \
-        "me.first" "pause"; do
+        "me.first" "pause" "home"; do
   add_file "out/$file.system.SYS" "$file.system#FF0000" "/$VOLNAME"
   add_file "out/$file.setup.SYS"  "$file.setup#FF0000"  "/$VOLNAME/SETUPS"
 done

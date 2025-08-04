@@ -13,17 +13,19 @@ If you choose this approach, use a tool like Copy II Plus or [Apple II DeskTop](
 
 * `PRODOS` - the operating system, e.g. [ProDOS 2.4](https://prodos8.com/)
 * `SETUP.SYSTEM` - install No-Slot clock driver, if present
+* `SETUPS/` - directory used by `SETUP.SYSTEM`, which contains:
+  * `SETUPS/HOME.SETUP` - start off with a blank screen
+  * `SETUPS/NS.CLOCK.SETUP` - install No-Slot clock driver, if present
+  * `SETUPS/ROMXRTC.SETUP` - install ROMX clock driver, if present
+  * `SETUPS/FN.CLOCK.SETUP` - install FujiNet clock driver, if present
+  * `SETUPS/DCLOCK.SETUP` - install DClock clock driver, if present
+  * `SETUPS/CRICKET.SETUP` - install Cricket! clock driver, if present
+  * `SETUPS/ZIPCHIP.SETUP` - slow the ZIP CHIP on speaker access, if present
+  * `SETUPS/RAM.DRV.SETUP` - install RamWorks RAM disk driver, if present
+  * `SETUPS/BUHBYE.SETUP` - install a customized Quit handler to replace the built-in one
+  * `SETUPS/PAUSE.SETUP` - pause for a moment, so that you can inspect the output of the above
 * `QUIT.SYSTEM` - invoke the Quit handler immediately, as a program selector
 * `BASIC.SYSTEM` - which will not be automatically invoked, but is available to manually invoke
-* `SETUPS/NS.CLOCK.SYSTEM` - install No-Slot clock driver, if present
-* `SETUPS/ROMXRTC.SYSTEM` - install ROMX clock driver, if present
-* `SETUPS/FN.CLOCK.SYSTEM` - install FujiNet clock driver, if present
-* `SETUPS/DCLOCK.SYSTEM` - install DClock clock driver, if present
-* `SETUPS/CRICKET.SYSTEM` - install Cricket! clock driver, if present
-* `SETUPS/ZIPCHIP.SYSTEM` - slow the ZIP CHIP on speaker access, if present
-* `SETUPS/RAM.DRV.SYSTEM` - install RamWorks RAM disk driver, if present
-* `SETUPS/BUHBYE.SYSTEM` - install a customized Quit handler to replace the built-in one
-* `SETUPS/PAUSE.SYSTEM` - pause for a moment, so that you can inspect the output of the above
 
 ## Notes
 

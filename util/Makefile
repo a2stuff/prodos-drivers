@@ -10,6 +10,8 @@ TARGETS = \
 	$(OUTDIR)/quit.system.SYS \
 	$(OUTDIR)/pause.system.SYS \
 	$(OUTDIR)/pause.setup.SYS \
+	$(OUTDIR)/home.system.SYS \
+	$(OUTDIR)/home.setup.SYS \
 	$(OUTDIR)/me.first.system.SYS \
 	$(OUTDIR)/me.first.setup.SYS \
 	$(OUTDIR)/date.BIN

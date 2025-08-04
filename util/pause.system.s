@@ -19,7 +19,7 @@
 .proc maybe_install_driver
         ldx     #4
 :       lda     #$FF
-        jsr     $FCA8           ; WAIT
+        jsr     WAIT
         dex
         bne     :-
         rts

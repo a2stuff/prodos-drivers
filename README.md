@@ -8,7 +8,7 @@ Build with [ca65](https://cc65.github.io/doc/ca65.html)
 
 The ProDOS operating system for the Apple II executes the first `.SYSTEM` file found in the boot directory on startup. A common pattern is to have the boot directory contain several "driver" files that customize ProDOS by installing drivers for hardware or modify specific parts of the operating system. These include:
 
-* Real-time Clock drivers (e.g. No-Slot Clock, Cricket!, AE DClock, etc)
+* Real-time Clock drivers (e.g. No-Slot Clock, The Cricket!, AE DClock, etc)
   * In ProDOS 1.x, 2.0 and 2.4 the Thunderclock driver is built-in.
 * RAM Disk drivers (e.g. RamWorks)
   * In ProDOS 1.x, 2.0 and 2.4 only a 64K driver for /RAM is built-in.
@@ -27,7 +27,7 @@ This repo includes the following drivers/modifications:
 
 * Real-time Clock drivers
   * No-Slot Clock
-  * Cricket!
+  * The Cricket!
   * Applied Engineering DClock
   * ROMX Real-Time Clock
   * FujiNet Clock
@@ -44,9 +44,9 @@ This repo includes the following drivers/modifications:
 * Text color themes
   * These set the IIgs (or VidHD) text/background/border colors
 
-In addition, `QUIT.SYSTEM` is present which isn't a driver but which immediately invokes the QUIT handler (a.k.a. program selector). This will happen automatically if the last driver can't find another `.SYSTEM` file, but `QUIT.SYSTEM` can be used to stop the chain.
+In addition, `QUIT.SYSTEM` is present which isn't a driver but which immediately invokes the QUIT handler (a.k.a. program selector). This will happen automatically if the last driver can't find another `.SYSTEM` file, but `QUIT.SYSTEM` can be used to stop the chain if you have other `.SYSTEM` files in your root directory.
 
-There's also `PAUSE.SYSTEM` which just waits for a fraction of a second before invoking the next driver file. (Why? In case the log messages from the other installers goes by too fast!)
+There's also `PAUSE.SYSTEM` which just waits for a fraction of a second before invoking the next driver file in case the log messages from the other installers goes by too fast for your taste, and `HOME.SYSTEM` in case you want the log messages to start off with a blank screen.
 
 Non-drivers that are included:
 * The `DATE` binary file can be `BRUN` (or just `-DATE`) to show the current ProDOS Date/Time, to verify that the clock driver is working.
@@ -57,11 +57,12 @@ Non-drivers that are included:
 The intent is that you use a tool like Copy II Plus or [Apple II DeskTop](https://github.com/a2stuff/a2d) to copy and arrange the SYSTEM files on your boot disk as you see fit. A boot disk image catalog that is used on multiple different hardware configurations might include:
 
 * `PRODOS` - the operating system, e.g. [ProDOS 2.4](https://prodos8.com/)
+* `HOME.SYSTEM` - start off with a blank screen
 * `NS.CLOCK.SYSTEM` - install No-Slot clock driver, if present
 * `ROMXRTC.SYSTEM` - install ROMX clock driver, if present
 * `FN.CLOCK.SYSTEM` - install FujiNet clock driver, if present
 * `DCLOCK.SYSTEM` - install DClock clock driver, if present
-* `CRICKET.SYSTEM` - install Cricket! clock driver, if present
+* `CRICKET.SYSTEM` - install The Cricket! clock driver, if present
 * `ZIPCHIP.SYSTEM` - slow the ZIP CHIP on speaker access, if present
 * `RAM.DRV.SYSTEM` - install RamWorks RAM disk driver, if present
 * `BUHBYE.SYSTEM` - install a customized Quit handler to replace the built-in one
