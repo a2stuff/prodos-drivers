@@ -5,17 +5,46 @@
 
 set -e
 
-PACKDIR=$(mktemp -d)
 IMGFILE="prodos-drivers.po"
 VOLNAME="drivers"
 
+# cecho - "color echo"
+# ex: cecho red ...
+# ex: cecho green ...
+# ex: cecho yellow ...
+function cecho {
+    case $1 in
+        red)    tput setaf 1 ; shift ;;
+        green)  tput setaf 2 ; shift ;;
+        yellow) tput setaf 3 ; shift ;;
+    esac
+    echo -e "$@"
+    tput sgr0
+}
+
+# suppress - hide command output unless it failed; and if so show in red
+# ex: suppress command_that_might_fail args ...
+function suppress {
+    set +e
+    local result
+    result=$("$@")
+    if [ $? -ne 0 ]; then
+        cecho red "$result" >&2
+        exit 1
+    fi
+    set -e
+}
+
+
 rm -f "$IMGFILE"
-cadius CREATEVOLUME "$IMGFILE" "$VOLNAME" 140KB --no-case-bits --quiet
-cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/SETUPS" --no-case-bits --quiet
+suppress cadius CREATEVOLUME "$IMGFILE" "$VOLNAME" 140KB --no-case-bits --quiet
+
+PACKDIR=$(mktemp -d)
+trap "rm -r $PACKDIR" EXIT
 
 add_file () {
     cp "$1" "$PACKDIR/$2"
-    cadius ADDFILE "$IMGFILE" "$3" "$PACKDIR/$2" --no-case-bits --quiet
+    suppress cadius ADDFILE "$IMGFILE" "$3" "$PACKDIR/$2" --no-case-bits --quiet
 }
 
 # Drivers
@@ -36,24 +65,17 @@ add_file "out/quit.system.SYS"  "quit.system#FF0000" "/$VOLNAME"
 
 add_file "out/date.BIN" "date#062000" "/$VOLNAME"
 
-cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/CRICKET.UTIL" --no-case-bits --quiet
 add_file "out/cricket.util/set.datetime.BIN" "set.datetime#062000" "/$VOLNAME/CRICKET.UTIL"
 add_file "out/cricket.util/set.date.BIN"     "set.date#062000"     "/$VOLNAME/CRICKET.UTIL"
 add_file "out/cricket.util/set.time.BIN"     "set.time#062000"     "/$VOLNAME/CRICKET.UTIL"
 add_file "out/cricket.util/test.BIN"         "test#062000"         "/$VOLNAME/CRICKET.UTIL"
 
-cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/NSCLOCK.UTIL" --no-case-bits --quiet
 add_file "out/nsclock.util/set.datetime.BIN" "set.datetime#062000" "/$VOLNAME/NSCLOCK.UTIL"
 
 
-
-cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/TEXTCOLORS" --no-case-bits --quiet
-cadius CREATEFOLDER "$IMGFILE" "/$VOLNAME/SETUPS/TEXTCOLORS" --no-case-bits --quiet
 for file in a2green bw deepblue gray gsblue mint pink wb; do
     add_file "out/${file}.system.SYS" "${file}.system#FF0000" "/$VOLNAME/TEXTCOLORS"
     add_file "out/${file}.setup.SYS"  "${file}.setup#FF0000"  "/$VOLNAME/TEXTCOLORS/SETUPS"
 done
 
-rm -r "$PACKDIR"
-
-cadius CATALOG "$IMGFILE"
+cadius CATALOG "$IMGFILE" | cut -c1-$(tput cols)
