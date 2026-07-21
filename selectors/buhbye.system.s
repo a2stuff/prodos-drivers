@@ -5,6 +5,7 @@
 ;;;  * alpha key advances to next matching filename
 ;;;  * replaced directory enumeration (smaller, per PDTRM)
 ;;;  * installs, then chains to next .SYSTEM file
+;;;  * Keys 1-7 boot that slot
 
         .setcpu "65C02"
         .linecont +
@@ -108,10 +109,6 @@ loop:   lda     (src_ptr)       ; *src_ptr = *dst_ptr
         block_entries   := $62
         active_entries  := $63  ; 2 bytes
 
-        entry_length    := $6E
-        entries_per_block := $6F
-        file_count      := $70  ; 2 bytes
-
         ;; Found entries
         current_entry   := $67  ; index of current entry
         num_entries     := $68  ; length of |filenames| (max 128)
@@ -207,25 +204,13 @@ fail:   lda     prefix_depth    ; root?
         jsr     do_read
         bcs     fail
 
-        ;; Store entry_length (byte), entries_per_block (byte), file_count (word)
-        ldx     #3
-:       lda     read_buffer + SubdirectoryHeader::entry_length,x
-        sta     entry_length,x
-        dex
-        bpl     :-
-
-        ;; Any entries?
-        lda     file_count
-        ora     file_count+1
-        beq     close_dir
-
         ;; Skip header entry
         clc
         lda     #<(read_buffer+4) ; 4 bytes for prev/next pointers
-        adc     entry_length
+        adc     #$27              ; standard `entry_length`, per ProDOS-8 TRM
         sta     entry_pointer
         lda     #>(read_buffer+4)
-        adc     #0              ; TODO: Can skip this if entry_length << 256
+        adc     #0
         sta     entry_pointer+1
 
         ;; Prepare to process entry two (first "entry" is header)
@@ -243,7 +228,7 @@ while_loop:
         cmp     #FT_DIRECTORY
         beq     store_entry
         cmp     #FT_SYSTEM
-        bne     done_active_entry
+        bne     done_entry
 
 store_entry:
         ;; Store type
@@ -263,27 +248,15 @@ store_entry:
 
         inc     num_entries
 
-done_active_entry:
-        dec     file_count
-        bpl     :+
-        dec     file_count+1
-:
-
 done_entry:
-        ;;  Seen all active entries?
-        lda     file_count
-        ora     file_count+1
-        beq     close_dir
-
         ;; Seen all entries in this block?
         lda     block_entries
-        cmp     entries_per_block
+        cmp     #$0D            ; standard `entries_per_block`, per ProDOS-8 TRM
         bne     next_in_block
 
         ;; Grab next block
-next_block:
         jsr     do_read         ; read another block
-        bcs     fail
+        bcs     close_dir
 
         lda     #1              ; first entry in non-key block
         sta     block_entries
@@ -299,7 +272,7 @@ next_block:
 next_in_block:
         clc
         lda     entry_pointer
-        adc     entry_length
+        adc     #$27              ; standard `entry_length`, per ProDOS-8 TRM
         sta     entry_pointer
         bcc     :+
         inc     entry_pointer+1
@@ -418,6 +391,11 @@ keyboard_loop:
         sta     KBDSTRB
         jsr     SETNORM
 
+        cmp     #HI('1')
+        bcc     :+
+        cmp     #HI('7')+1
+        bcc     on_digit
+:
         cmp     #HI(ASCII_TAB)
         beq     next_drive
         cmp     #HI(ASCII_ESCAPE)
@@ -483,6 +461,17 @@ loop:   jsr     down_common
 
 ;;; ------------------------------------------------------------
 
+.proc on_digit
+        and     #$0F            ; key code to $0n
+        ora     #$C0            ; $Cn
+        sta     slot_vector
+        jsr     exit_80col_firmware
+        slot_vector := *+2
+        jmp     $C000           ; self-modified
+.endproc
+
+;;; ------------------------------------------------------------
+
 next_drive:                     ; relay for branches
         jmp     next_device
 
@@ -491,6 +480,15 @@ inc_resize_prefix_and_open:
 
 resize_prefix_and_open_jmp:
         jmp     resize_prefix_and_open
+
+;;; ------------------------------------------------------------
+
+.proc exit_80col_firmware
+        jsr     SETTXT
+        jsr     HOME
+        lda     #HI(ASCII_RIGHT) ; exit 80-col firmware
+        jmp     COUT
+.endproc
 
 ;;; ------------------------------------------------------------
 
@@ -520,11 +518,7 @@ resize_prefix_and_open_jmp:
 ;;; ------------------------------------------------------------
 
 .proc launch_sys_file
-        jsr     SETTXT
-        jsr     HOME
-        lda     #HI(ASCII_RIGHT) ; Right arrow ???
-        jsr     COUT
-
+        jsr     exit_80col_firmware
         jsr     do_open
         bcs     next_drive
         lda     #$FF            ; Load up to $FFFF bytes

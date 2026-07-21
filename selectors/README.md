@@ -39,7 +39,7 @@ The new (unofficial) releases of [ProDOS 2.4](http://www.callapple.org/uncategor
 
 ## Buh-Bye - Enhanced 80-column selector
 
-Since I prefered the look of the ProDOS 80-column selector to Bitsy Bye, but missed the type-down ability, I modified the 80-column selector to tighten up the code added seeking if an alphabetical key is typed. Hit 'C' and the list will scroll to the next file starting with 'C'.
+Since I prefered the look of the ProDOS 80-column selector to Bitsy Bye, but missed the type-down ability, I modified the 80-column selector to tighten up the code added seeking if an alphabetical key is typed. Hit 'C' and the list will scroll to the next file starting with 'C'. Typing '1' through '7' will boot that slot.
 
 I erroneously thought that the ProDOS 80-column selector was _Bird's Better Bye_ and named this "Bell's Better Bird's Better Bye" or "Buh-Bye".
 
