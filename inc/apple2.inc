@@ -73,6 +73,7 @@ SETINV          := $FE80
 SETNORM         := $FE84
 SETKBD          := $FE89
 SETVID          := $FE93
+IDROUTINE       := $FE1F        ; RTS ($60) on pre-IIgs, clears carry on IIgs
 BELL            := $FF3A
 
 ;;; ============================================================

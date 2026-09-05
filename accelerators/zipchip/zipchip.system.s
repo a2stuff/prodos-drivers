@@ -106,6 +106,14 @@
         .define PRODUCT "ZIP CHIP"
 
 .proc maybe_install_driver
+
+        ;; Skip on IIgs
+        sec
+        jsr     IDROUTINE
+        bcs     :+
+        rts
+:
+
         php                     ; timing sensitive
         sei
 
